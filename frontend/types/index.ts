@@ -99,6 +99,7 @@ export interface AnalyticsSummaryResponse {
 }
 
 export interface BorrowerInfo {
+    borrow_id: string;
     member_id: string;
     name: string;
     borrowed_at: string;

@@ -23,7 +23,11 @@ class BookDetailRepository:
         """
         query = (
             self.session.query(
-                Member.id, Member.name, BorrowRecord.borrowed_at, BorrowRecord.due_date
+                Member.id,
+                Member.name,
+                BorrowRecord.borrowed_at,
+                BorrowRecord.due_date,
+                BorrowRecord.id.label("borrow_id"),
             )
             .join(BorrowRecord, Member.id == BorrowRecord.member_id)
             .filter(
@@ -51,6 +55,7 @@ class BookDetailRepository:
 
             borrower_infos.append(
                 BorrowerInfo(
+                    borrow_id=r.borrow_id,
                     member_id=r.id,
                     name=r.name,
                     borrowed_at=r.borrowed_at,

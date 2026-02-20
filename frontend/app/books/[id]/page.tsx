@@ -8,7 +8,7 @@ import {
     BorrowHistoryItem,
     BorrowerInfo
 } from '@/types'
-import { getBookDetails } from '@/lib/api'
+import { getBookDetails, returnBook } from '@/lib/api'
 import {
     ArrowLeft,
     Book as BookIcon,
@@ -21,7 +21,9 @@ import {
     ChevronLeft,
     ChevronRight,
     Calendar,
-    ArrowUpRight
+    ArrowUpRight,
+    RotateCcw,
+    Loader2
 } from 'lucide-react'
 
 export default function BookDetailPage() {
@@ -31,6 +33,7 @@ export default function BookDetailPage() {
 
     const [data, setData] = useState<BookDetailResponse | null>(null)
     const [loading, setLoading] = useState(true)
+    const [returningId, setReturningId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [historyOffset, setHistoryOffset] = useState(0)
     const HISTORY_LIMIT = 5
@@ -56,6 +59,19 @@ export default function BookDetailPage() {
     const handlePageChange = (newOffset: number) => {
         setHistoryOffset(newOffset)
         fetchData(newOffset)
+    }
+
+    const handleReturn = async (borrowId: string) => {
+        try {
+            setReturningId(borrowId)
+            await returnBook(borrowId)
+            await fetchData(historyOffset)
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Return failed'
+            alert(msg)
+        } finally {
+            setReturningId(null)
+        }
     }
 
     if (loading && !data) {
@@ -176,6 +192,7 @@ export default function BookDetailPage() {
                                             <th className="px-6 py-4">Member</th>
                                             <th className="px-6 py-4">Borrowed At</th>
                                             <th className="px-6 py-4">Status</th>
+                                            <th className="px-6 py-4 text-right">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50 text-sm">
@@ -201,6 +218,21 @@ export default function BookDetailPage() {
                                                             borrower.days_until_due === 0 ? 'Due Today' :
                                                                 `Due in ${borrower.days_until_due}d`}
                                                     </span>
+                                                </td>
+                                                <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                    <button
+                                                        onClick={() => handleReturn(borrower.borrow_id)}
+                                                        disabled={returningId === borrower.borrow_id}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50"
+                                                        title="Process Return"
+                                                    >
+                                                        {returningId === borrower.borrow_id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        ) : (
+                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                        )}
+                                                        Return
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}

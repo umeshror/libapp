@@ -6,6 +6,7 @@ from app.schemas import BookResponse
 
 
 class BorrowerInfo(BaseModel):
+    borrow_id: UUID
     member_id: UUID
     name: str
     borrowed_at: datetime
