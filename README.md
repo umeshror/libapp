@@ -49,6 +49,15 @@ This repository is structured to reflect how such a system might evolve in a rea
   <img src="media/8.png" width="45%">
 </p>
 
+
+<p align="center">
+  <img src="media/8.png" width="30%">
+  <img src="media/9.png" width="30%">
+  <img src="media/10.png" width="30%">
+
+</p>
+
+
 ---
 
 ## Tech Stack
