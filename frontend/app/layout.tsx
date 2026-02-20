@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import Link from 'next/link'
 import Providers from './providers'
+import { Toaster } from 'sonner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -20,6 +21,7 @@ export default function RootLayout({
         <html lang="en" className="h-full bg-gray-50 antialiased">
             <body className={`${inter.className} h-full flex flex-col`}>
                 <Providers>
+                    <Toaster richColors position="top-right" />
                     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
                         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex justify-between h-16">

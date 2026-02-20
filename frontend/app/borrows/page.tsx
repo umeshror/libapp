@@ -8,6 +8,8 @@ import { getBorrows, fetchAPI } from '../../lib/api';
 import SearchBar from '../../components/SearchBar';
 import Pagination from '../../components/Pagination';
 import SortSelect from '../../components/SortSelect';
+import { toast } from 'sonner';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 function BorrowsContent() {
     const router = useRouter();
@@ -35,7 +37,7 @@ function BorrowsContent() {
     const totalPages = Math.ceil(total / pageSize) || 0;
     const error = queryError ? queryError.message : '';
 
-    const [actionError, setActionError] = useState<string | null>(null);
+    const [confirmingReturn, setConfirmingReturn] = useState<{ id: string, bookTitle: string } | null>(null);
 
     const updateUrl = (newParams: Record<string, string | number>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -48,8 +50,6 @@ function BorrowsContent() {
         });
         router.push(`${pathname}?${params.toString()}`);
     };
-
-
 
     // Handlers
     const handleSearch = (newQuery: string) => {
@@ -68,19 +68,23 @@ function BorrowsContent() {
         mutationFn: (borrowId: string) => fetchAPI(`/borrows/${borrowId}/return/`, { method: 'POST' }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['borrows'] });
-            // Also invalidate books and members to keep availability and counts synced
             queryClient.invalidateQueries({ queryKey: ['books'] });
             queryClient.invalidateQueries({ queryKey: ['members'] });
+            toast.success('Book returned successfully');
+            setConfirmingReturn(null);
         },
         onError: (err: Error) => {
-            setActionError(err.message);
-            setTimeout(() => setActionError(null), 5000);
+            toast.error(err.message || 'Failed to return book');
         }
     });
 
-    async function handleReturn(borrowId: string) {
-        if (!confirm('Are you sure you want to return this book?')) return;
-        returnMutation.mutate(borrowId);
+    async function handleReturn(borrowId: string, bookTitle: string) {
+        setConfirmingReturn({ id: borrowId, bookTitle });
+    }
+
+    async function executeReturn() {
+        if (!confirmingReturn) return;
+        returnMutation.mutate(confirmingReturn.id);
     }
 
     return (
@@ -102,18 +106,6 @@ function BorrowsContent() {
                 </div>
             </div>
 
-            {actionError && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg shadow-sm flex items-center justify-between animate-in fade-in">
-                    <div>
-                        <strong className="font-bold">Action Failed: </strong>
-                        <span className="block sm:inline">{actionError}</span>
-                    </div>
-                    <button onClick={() => setActionError(null)} className="text-red-500 hover:text-red-700 font-bold ml-4">
-                        &times;
-                    </button>
-                </div>
-            )}
-
             {isLoading ? (
                 <div className="text-center py-12">Loading borrow records...</div>
             ) : error ? (
@@ -132,7 +124,7 @@ function BorrowsContent() {
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Borrowed</th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
@@ -155,12 +147,12 @@ function BorrowsContent() {
                                                 {record.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             {record.status === 'borrowed' && (
                                                 <button
-                                                    onClick={() => handleReturn(record.id)}
+                                                    onClick={() => handleReturn(record.id, record.book?.title || 'Unknown Book')}
                                                     disabled={returnMutation.isPending && returnMutation.variables === record.id}
-                                                    className="text-indigo-600 hover:text-indigo-900 disabled:opacity-50"
+                                                    className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50"
                                                 >
                                                     {returnMutation.isPending && returnMutation.variables === record.id ? 'Returning...' : 'Return'}
                                                 </button>
@@ -177,6 +169,16 @@ function BorrowsContent() {
             <div className="mt-6 flex justify-center">
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
+
+            <ConfirmationModal
+                isOpen={!!confirmingReturn}
+                onClose={() => setConfirmingReturn(null)}
+                onConfirm={executeReturn}
+                isLoading={returnMutation.isPending}
+                title="Confirm Return"
+                description={`Are you sure you want to return "${confirmingReturn?.bookTitle}"?`}
+                confirmText="Confirm Return"
+            />
         </div>
     );
 }

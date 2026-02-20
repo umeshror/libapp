@@ -15,6 +15,8 @@ import {
     getMemberAnalytics,
     returnBook
 } from '@/lib/api'
+import { toast } from 'sonner'
+import ConfirmationModal from '@/components/ConfirmationModal'
 import {
     Calendar,
     Mail,
@@ -57,8 +59,9 @@ export default function MemberDetailPage() {
     const [history, setHistory] = useState<MemberBorrowHistoryItem[]>([])
     const [analytics, setAnalytics] = useState<MemberAnalyticsResponse | null>(null)
     const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [returningId, setReturningId] = useState<string | null>(null)
+    const [confirmingReturn, setConfirmingReturn] = useState<{ id: string, title: string } | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     // Pagination & Filter State
     const [page, setPage] = useState(1)
@@ -113,14 +116,21 @@ export default function MemberDetailPage() {
         }
     }, [page, fetchHistoryOnly, loading])
 
-    const handleReturn = async (borrowId: string) => {
+    const handleReturn = async (borrowId: string, bookTitle: string) => {
+        setConfirmingReturn({ id: borrowId, title: bookTitle })
+    }
+
+    const executeReturn = async () => {
+        if (!confirmingReturn) return
         try {
-            setReturningId(borrowId)
-            await returnBook(borrowId)
+            setReturningId(confirmingReturn.id)
+            await returnBook(confirmingReturn.id)
+            toast.success(`"${confirmingReturn.title}" returned successfully`)
+            setConfirmingReturn(null)
             await fetchData()
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Return failed'
-            alert(msg)
+            toast.error(msg)
         } finally {
             setReturningId(null)
         }
@@ -248,7 +258,7 @@ export default function MemberDetailPage() {
                                                         </span>
                                                     )}
                                                     <button
-                                                        onClick={() => handleReturn(record.id)}
+                                                        onClick={() => handleReturn(record.id, record.book_title)}
                                                         disabled={returningId === record.id}
                                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 transition-all shadow-sm disabled:opacity-50"
                                                         title="Process Return"
@@ -478,6 +488,17 @@ export default function MemberDetailPage() {
                     </section>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={!!confirmingReturn}
+                onClose={() => setConfirmingReturn(null)}
+                onConfirm={executeReturn}
+                isLoading={returningId === confirmingReturn?.id}
+                title="Confirm Return"
+                description={`Are you sure you want to return "${confirmingReturn?.title}"?`}
+                confirmText="Confirm Return"
+                isDanger={false}
+            />
         </div>
     )
 }

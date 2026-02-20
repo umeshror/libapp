@@ -28,14 +28,26 @@ This repository is structured to reflect how such a system might evolve in a rea
 ## 🎬 Demo
 ![Demo](Library-Management-System.gif)
 
-## 📸 Screenshots
-![Dashboard](media/1.png)
-![Books List](media/2.png)
-![Book Details](media/3.png)
-![Borrow Modal](media/4.png)
-![Members List](media/5.png)
-![Member Details](media/6.png)
-![Analytics Charts](media/7.png)
+
+<p align="center">
+  <img src="media/1.png" width="45%">
+  <img src="media/2.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="media/3.png" width="45%">
+  <img src="media/4.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="media/5.png" width="45%">
+  <img src="media/6.png" width="45%">
+</p>
+
+<p align="center">
+  <img src="media/5.png" width="45%">
+  <img src="media/6.png" width="45%">
+</p>
 
 ---
 

@@ -8,7 +8,10 @@ import {
     BorrowHistoryItem,
     BorrowerInfo
 } from '@/types'
-import { getBookDetails, returnBook } from '@/lib/api'
+import { getBookDetails, returnBook, borrowBook } from '@/lib/api'
+import { toast } from 'sonner'
+import ConfirmationModal from '@/components/ConfirmationModal'
+import MemberSelectionModal from '@/components/MemberSelectionModal'
 import {
     ArrowLeft,
     Book as BookIcon,
@@ -34,6 +37,10 @@ export default function BookDetailPage() {
     const [data, setData] = useState<BookDetailResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [returningId, setReturningId] = useState<string | null>(null)
+    const [confirmingReturn, setConfirmingReturn] = useState<{ id: string, name: string } | null>(null)
+    const [showBorrowModal, setShowBorrowModal] = useState(false)
+    const [isBorrowing, setIsBorrowing] = useState(false)
+    const [confirmingBorrow, setConfirmingBorrow] = useState<{ memberId: string, memberName: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [historyOffset, setHistoryOffset] = useState(0)
     const HISTORY_LIMIT = 5
@@ -61,16 +68,47 @@ export default function BookDetailPage() {
         fetchData(newOffset)
     }
 
-    const handleReturn = async (borrowId: string) => {
+    const handleReturn = async (borrowId: string, memberName: string) => {
+        setConfirmingReturn({ id: borrowId, name: memberName })
+    }
+
+    const executeReturn = async () => {
+        if (!confirmingReturn) return
         try {
-            setReturningId(borrowId)
-            await returnBook(borrowId)
+            setReturningId(confirmingReturn.id)
+            await returnBook(confirmingReturn.id)
+            toast.success(`Book returned from ${confirmingReturn.name} successfully`)
+            setConfirmingReturn(null)
             await fetchData(historyOffset)
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Return failed'
-            alert(msg)
+            toast.error(msg)
         } finally {
             setReturningId(null)
+        }
+    }
+
+    const handleMemberSelect = (memberId: string, memberName: string) => {
+        setShowBorrowModal(false)
+        setConfirmingBorrow({ memberId, memberName })
+    }
+
+    const executeBorrow = async () => {
+        if (!confirmingBorrow || !data) return
+        try {
+            setIsBorrowing(true)
+            await borrowBook({
+                book_id: data.book.id,
+                member_id: confirmingBorrow.memberId
+            })
+            toast.success(`Book successfully borrowed for ${confirmingBorrow.memberName}`)
+            setConfirmingBorrow(null)
+            await fetchData(historyOffset)
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Borrow failed'
+            toast.error(msg)
+        } finally {
+            setIsBorrowing(false)
         }
     }
 
@@ -135,6 +173,14 @@ export default function BookDetailPage() {
                     <span className="px-4 py-1.5 bg-gray-100 text-gray-700 border border-gray-200 rounded-full text-sm font-bold">
                         ISBN: {book.isbn}
                     </span>
+                    <button
+                        onClick={() => setShowBorrowModal(true)}
+                        disabled={book.available_copies <= 0 || isBorrowing}
+                        className="px-6 py-1.5 bg-blue-600 text-white rounded-full text-sm font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100 disabled:opacity-50 disabled:bg-gray-400 disabled:shadow-none inline-flex items-center gap-2"
+                    >
+                        {isBorrowing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4 rotate-180" />}
+                        Borrow Book
+                    </button>
                 </div>
             </div>
 
@@ -221,7 +267,7 @@ export default function BookDetailPage() {
                                                 </td>
                                                 <td className="px-6 py-4 text-right whitespace-nowrap">
                                                     <button
-                                                        onClick={() => handleReturn(borrower.borrow_id)}
+                                                        onClick={() => handleReturn(borrower.borrow_id, borrower.name)}
                                                         disabled={returningId === borrower.borrow_id}
                                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50"
                                                         title="Process Return"
@@ -376,6 +422,34 @@ export default function BookDetailPage() {
                     </div>
                 </div>
             </div>
+
+            <ConfirmationModal
+                isOpen={!!confirmingReturn}
+                onClose={() => setConfirmingReturn(null)}
+                onConfirm={executeReturn}
+                isLoading={returningId === confirmingReturn?.id}
+                title="Confirm Return"
+                description={`Are you sure you want to return this book from "${confirmingReturn?.name}"?`}
+                confirmText="Confirm Return"
+                isDanger={false}
+            />
+
+            <MemberSelectionModal
+                isOpen={showBorrowModal}
+                onClose={() => setShowBorrowModal(false)}
+                onSelect={handleMemberSelect}
+                title={`Borrow "${book.title}"`}
+            />
+
+            <ConfirmationModal
+                isOpen={!!confirmingBorrow}
+                onClose={() => setConfirmingBorrow(null)}
+                onConfirm={executeBorrow}
+                isLoading={isBorrowing}
+                title="Confirm Borrow"
+                description={`Are you sure you want to borrow "${book.title}" for member "${confirmingBorrow?.memberName}"?`}
+                confirmText="Confirm Borrow"
+            />
         </div>
     )
 }

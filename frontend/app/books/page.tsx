@@ -9,6 +9,9 @@ import { getBooks, fetchAPI, getMembers, borrowBook } from '../../lib/api';
 import SearchBar from '../../components/SearchBar';
 import Pagination from '../../components/Pagination';
 import SortSelect from '../../components/SortSelect';
+import { toast } from 'sonner';
+import ConfirmationModal from '../../components/ConfirmationModal';
+import MemberSelectionModal from '../../components/MemberSelectionModal';
 
 function BooksContent() {
     const router = useRouter();
@@ -42,25 +45,10 @@ function BooksContent() {
 
     // Borrow Modal State
     const [borrowingBook, setBorrowingBook] = useState<Book | null>(null);
-    const [memberQuery, setMemberQuery] = useState('');
-    const [debouncedMemberQuery, setDebouncedMemberQuery] = useState('');
     const [borrowError, setBorrowError] = useState('');
 
-    const [actionError, setActionError] = useState<string | null>(null);
-    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-
-    useEffect(() => {
-        const timer = setTimeout(() => setDebouncedMemberQuery(memberQuery), 300);
-        return () => clearTimeout(timer);
-    }, [memberQuery]);
-
-    // React Query for Members in Borrow Modal
-    const { data: membersData, isFetching: membersLoading } = useQuery({
-        queryKey: ['members-search', debouncedMemberQuery],
-        queryFn: () => getMembers({ q: debouncedMemberQuery, limit: 10 }),
-        enabled: !!borrowingBook,
-    });
-    const memberResults = membersData?.data || [];
+    // Confirmation State
+    const [confirmingBorrow, setConfirmingBorrow] = useState<{ book: Book, member: { id: string, name: string } } | null>(null);
 
     // Mutations
     const addBookMutation = useMutation({
@@ -69,10 +57,10 @@ function BooksContent() {
             queryClient.invalidateQueries({ queryKey: ['books'] });
             setShowAddForm(false);
             setNewBook({ title: '', author: '', isbn: '', total_copies: 1 });
+            toast.success('Book added successfully');
         },
         onError: (err: Error) => {
-            setActionError(err.message || 'Failed to add book');
-            setTimeout(() => setActionError(null), 5000);
+            toast.error(err.message || 'Failed to add book');
         }
     });
 
@@ -81,19 +69,28 @@ function BooksContent() {
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['books'] });
             setBorrowingBook(null);
-            setMemberQuery('');
+            setConfirmingBorrow(null);
+            toast.success(`Book borrowed successfully!`);
             // Redirect to member detail page
             router.push(`/members/${variables.memberId}`);
         },
         onError: (err: Error) => {
             setBorrowError(err.message);
+            toast.error(err.message);
         }
     });
 
-    async function handleConfirmBorrow(memberId: string) {
+    async function handleConfirmBorrow(memberId: string, memberName: string) {
         if (!borrowingBook) return;
-        setBorrowError('');
-        borrowMutation.mutate({ bookId: borrowingBook.id, memberId });
+        setConfirmingBorrow({ book: borrowingBook, member: { id: memberId, name: memberName } });
+    }
+
+    async function executeBorrow() {
+        if (!confirmingBorrow) return;
+        borrowMutation.mutate({
+            bookId: confirmingBorrow.book.id,
+            memberId: confirmingBorrow.member.id
+        });
     }
 
     const createQueryString = useCallback(
@@ -162,28 +159,6 @@ function BooksContent() {
                     </button>
                 </div>
             </div>
-
-            {actionError && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <span className="block sm:inline">{actionError}</span>
-                    </div>
-                    <button onClick={() => setActionError(null)} className="text-red-500 hover:text-red-700 font-bold ml-4">
-                        &times;
-                    </button>
-                </div>
-            )}
-
-            {actionSuccess && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <span className="block sm:inline">{actionSuccess}</span>
-                    </div>
-                    <button onClick={() => setActionSuccess(null)} className="text-emerald-500 hover:text-emerald-700 font-bold ml-4">
-                        &times;
-                    </button>
-                </div>
-            )}
 
             {/* Pagination Controls Top */}
             <div className="mb-4 flex justify-between items-center text-sm text-gray-500">
@@ -297,64 +272,22 @@ function BooksContent() {
                 </div>
             )}
 
-            {borrowingBook && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
-                        <h2 className="text-xl font-bold mb-4">Borrow &quot;{borrowingBook.title}&quot;</h2>
-                        <div className="mb-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Search Member</label>
-                            <input
-                                type="text"
-                                placeholder="Search by name or email..."
-                                className="w-full p-2 border rounded"
-                                value={memberQuery}
-                                onChange={e => setMemberQuery(e.target.value)}
-                            />
-                        </div>
+            <MemberSelectionModal
+                isOpen={!!borrowingBook}
+                onClose={() => { setBorrowingBook(null); setBorrowError(''); }}
+                onSelect={handleConfirmBorrow}
+                title={`Borrow "${borrowingBook?.title}"`}
+            />
 
-                        {borrowError && (
-                            <div className="mb-4 p-2 bg-red-100 text-red-700 rounded text-sm">
-                                {borrowError}
-                            </div>
-                        )}
-
-                        <div className="max-h-60 overflow-y-auto border rounded mb-4">
-                            {memberResults.length === 0 ? (
-                                <div className="p-4 text-center text-gray-500 text-sm">No members found.</div>
-                            ) : (
-                                memberResults.map(member => (
-                                    <div key={member.id} className="p-3 border-b hover:bg-gray-50 flex justify-between items-center">
-                                        <div>
-                                            <div className="font-semibold">{member.name}</div>
-                                            <div className="text-xs text-gray-500">{member.email}</div>
-                                        </div>
-                                        <button
-                                            onClick={() => handleConfirmBorrow(member.id)}
-                                            disabled={borrowMutation.isPending}
-                                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-                                        >
-                                            {borrowMutation.isPending ? '...' : 'Select'}
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                            {membersLoading && (
-                                <div className="p-4 text-center text-gray-400 text-xs">Searching...</div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => { setBorrowingBook(null); setMemberQuery(''); setBorrowError(''); }}
-                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ConfirmationModal
+                isOpen={!!confirmingBorrow}
+                onClose={() => setConfirmingBorrow(null)}
+                onConfirm={executeBorrow}
+                isLoading={borrowMutation.isPending}
+                title="Confirm Borrow"
+                description={`Are you sure you want to borrow "${confirmingBorrow?.book.title}" for member "${confirmingBorrow?.member.name}"?`}
+                confirmText="Confirm Borrow"
+            />
         </div>
     );
 }
