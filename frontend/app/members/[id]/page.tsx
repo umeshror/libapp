@@ -57,6 +57,7 @@ export default function MemberDetailPage() {
     // State
     const [core, setCore] = useState<MemberCoreDetails | null>(null)
     const [history, setHistory] = useState<MemberBorrowHistoryItem[]>([])
+    const [activeBorrows, setActiveBorrows] = useState<MemberBorrowHistoryItem[]>([])
     const [analytics, setAnalytics] = useState<MemberAnalyticsResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [returningId, setReturningId] = useState<string | null>(null)
@@ -74,12 +75,14 @@ export default function MemberDetailPage() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true)
-            const [coreData, analyticsData] = await Promise.all([
+            const [coreData, analyticsData, activeBorrowsData] = await Promise.all([
                 getMemberCoreDetails(memberId),
-                getMemberAnalytics(memberId)
+                getMemberAnalytics(memberId),
+                getMemberBorrowHistory(memberId, 50, 0, 'active', 'borrowed_at', 'desc')
             ])
             setCore(coreData)
             setAnalytics(analyticsData)
+            setActiveBorrows(activeBorrowsData.data)
 
             // Initial history fetch
             const historyData = await getMemberBorrowHistory(memberId, limit, 0, status, sort, order)
@@ -165,8 +168,6 @@ export default function MemberDetailPage() {
             </div>
         )
     }
-
-    const activeBorrows = history.filter(h => h.returned_at === null)
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-500">

@@ -88,7 +88,7 @@ export async function getMemberBorrowHistory(
         sort,
         order
     });
-    return fetchAPI(`/members/${memberId}/borrows?${params.toString()}`);
+    return fetchAPI(`/members/${memberId}/history?${params.toString()}`);
 }
 
 export async function getMemberAnalytics(memberId: string): Promise<MemberAnalyticsResponse> {
