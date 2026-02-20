@@ -19,6 +19,7 @@ class MemberCoreDetails(BaseModel):
 
 
 class MemberBorrowHistoryItem(BaseModel):
+    id: UUID
     book_id: UUID
     book_title: str
     borrowed_at: datetime

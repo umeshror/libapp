@@ -30,7 +30,6 @@ dist
 .env*.local
 *.bak
 
-# Project Documentation/Orchestration (usually not needed in image)
 README.md
 Makefile
 docker-compose.yml

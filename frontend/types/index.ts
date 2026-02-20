@@ -151,6 +151,7 @@ export interface MemberCoreDetails {
 }
 
 export interface MemberBorrowHistoryItem {
+    id: string;
     book_id: string;
     book_title: string;
     borrowed_at: string;

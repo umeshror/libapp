@@ -12,7 +12,8 @@ import {
 import {
     getMemberCoreDetails,
     getMemberBorrowHistory,
-    getMemberAnalytics
+    getMemberAnalytics,
+    returnBook
 } from '@/lib/api'
 import {
     Calendar,
@@ -29,7 +30,9 @@ import {
     User,
     BookOpen,
     Filter,
-    ArrowUpDown
+    ArrowUpDown,
+    RotateCcw,
+    Loader2
 } from 'lucide-react'
 import {
     LineChart,
@@ -55,6 +58,7 @@ export default function MemberDetailPage() {
     const [analytics, setAnalytics] = useState<MemberAnalyticsResponse | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const [returningId, setReturningId] = useState<string | null>(null)
 
     // Pagination & Filter State
     const [page, setPage] = useState(1)
@@ -108,6 +112,19 @@ export default function MemberDetailPage() {
             fetchHistoryOnly(page)
         }
     }, [page, fetchHistoryOnly, loading])
+
+    const handleReturn = async (borrowId: string) => {
+        try {
+            setReturningId(borrowId)
+            await returnBook(borrowId)
+            await fetchData()
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Return failed'
+            alert(msg)
+        } finally {
+            setReturningId(null)
+        }
+    }
 
     const getRiskBadge = (level: string) => {
         const colors = {
@@ -220,7 +237,7 @@ export default function MemberDetailPage() {
                                                         {format(dueDate, 'MMM dd, yyyy')}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-right">
+                                                <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
                                                     {daysRemaining < 0 ? (
                                                         <span className="text-rose-600 font-bold bg-rose-50 px-2 py-1 rounded text-xs animate-pulse">
                                                             {Math.abs(daysRemaining)}d OVERDUE
@@ -230,6 +247,19 @@ export default function MemberDetailPage() {
                                                             {daysRemaining}d REMAINING
                                                         </span>
                                                     )}
+                                                    <button
+                                                        onClick={() => handleReturn(record.id)}
+                                                        disabled={returningId === record.id}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 transition-all shadow-sm disabled:opacity-50"
+                                                        title="Process Return"
+                                                    >
+                                                        {returningId === record.id ? (
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                        ) : (
+                                                            <RotateCcw className="w-3.5 h-3.5" />
+                                                        )}
+                                                        Return
+                                                    </button>
                                                 </td>
                                             </tr>
                                         )

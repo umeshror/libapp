@@ -82,6 +82,7 @@ class MemberDetailRepository:
         """
         query = (
             select(
+                BorrowRecord.id,
                 BorrowRecord.book_id,
                 Book.title.label("book_title"),
                 BorrowRecord.borrowed_at,

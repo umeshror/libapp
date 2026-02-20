@@ -101,3 +101,9 @@ export async function borrowBook(payload: { book_id: string, member_id: string }
         body: JSON.stringify(payload)
     });
 }
+
+export async function returnBook(borrowId: string): Promise<BorrowRecord> {
+    return fetchAPI(`/borrows/${borrowId}/return/`, {
+        method: 'POST'
+    });
+}

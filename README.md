@@ -25,26 +25,26 @@ This repository is structured to reflect how such a system might evolve in a rea
 
 ## System Demo
 
-![System Demo Walkthrough](/Users/umeshsaruk/pprojects/libapp/Library-Management-System.webm)
+![System Demo Walkthrough](Library-Management-System.webm)
 
 ---
 
 ## Gallery
 
 ````carousel
-![Dashboard](/Users/umeshsaruk/pprojects/libapp/media/1.png)
+![Dashboard](media/1.png)
 <!-- slide -->
-![Books List](/Users/umeshsaruk/pprojects/libapp/media/2.png)
+![Books List](media/2.png)
 <!-- slide -->
-![Book Details](/Users/umeshsaruk/pprojects/libapp/media/3.png)
+![Book Details](media/3.png)
 <!-- slide -->
-![Borrow Modal](/Users/umeshsaruk/pprojects/libapp/media/4.png)
+![Borrow Modal](media/4.png)
 <!-- slide -->
-![Members List](/Users/umeshsaruk/pprojects/libapp/media/5.png)
+![Members List](media/5.png)
 <!-- slide -->
-![Member Details](/Users/umeshsaruk/pprojects/libapp/media/6.png)
+![Member Details](media/6.png)
 <!-- slide -->
-![Analytics Charts](/Users/umeshsaruk/pprojects/libapp/media/7.png)
+![Analytics Charts](media/7.png)
 ````
 
 ---
