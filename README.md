@@ -15,8 +15,8 @@ While the functional scope resembles a typical take-home assignment (books, memb
 
 The system supports:
 
-* 40,000 books
-* 10,000 members
+* 50,000 books
+* 15,000 members
 * ~500,000–1,000,000 borrow records
 * 24 months of simulated activity
 * Analytics and entity-level insights
@@ -240,6 +240,32 @@ The seeder also simulates:
 * Deterministic random seed
 
 The goal is not random noise, but meaningful analytics patterns.
+
+---
+
+## High-Scale Performance Validation
+
+To verify the system's stability and performance at its maximum design capacity, follow these steps:
+
+1.  **Purge Environment**: Ensure a clean slate by wiping all existing data and containers:
+    ```bash
+    make docker-down
+    ```
+
+2.  **Execute High-Scale Setup**: This performs a "Cold Start" with 50k books, 15k members, and 1M+ records:
+    ```bash
+    make setup-high
+    ```
+
+3.  **Start Services**:
+    ```bash
+    make start
+    ```
+
+4.  **Audit Performance**:
+    -   Navigate to the **Dashboard** and verify that 30 months of activity are aggregated within ~2 seconds.
+    -   Use the **Global Search** in the Books library to verify sub-500ms response times across 50,000 records.
+    -   Check **Book Details** for popular titles to ensure complex history analytics are calculated accurately and instantly.
 
 ---
 
