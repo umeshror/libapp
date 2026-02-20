@@ -65,6 +65,21 @@ export interface TopMember {
     borrow_count: number;
 }
 
+export interface PopularBook {
+    book_id: string;
+    title: string;
+    author: string;
+    borrow_count: number;
+}
+
+export interface RecentActivity {
+    id: string;
+    type: 'borrow' | 'return';
+    book_title: string;
+    member_name: string;
+    timestamp: string;
+}
+
 export interface InventoryHealth {
     low_stock_books: number;
     never_borrowed_books: number;
@@ -94,6 +109,8 @@ export interface AnalyticsSummaryResponse {
     daily_active_members: DailyActiveMember[];
     daily_borrows: DailyBorrowCount[];
     forecast: BorrowForecast;
+    popular_books: PopularBook[];
+    recent_activity: RecentActivity[];
     cache_hit: boolean;
     generated_at: string;
 }

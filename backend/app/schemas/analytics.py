@@ -21,6 +21,19 @@ class TopMember(BaseModel):
     name: str
     borrow_count: int
 
+class PopularBook(BaseModel):
+    book_id: str
+    title: str
+    author: str
+    borrow_count: int
+
+class RecentActivity(BaseModel):
+    id: str
+    type: str  # 'borrow' or 'return'
+    book_title: str
+    member_name: str
+    timestamp: str
+
 
 class InventoryHealth(BaseModel):
     low_stock_books: int
@@ -51,6 +64,8 @@ class AnalyticsSummaryResponse(BaseModel):
     daily_active_members: List[DailyActiveMember]
     daily_borrows: List[DailyBorrowCount]
     forecast: BorrowForecast
+    popular_books: List[PopularBook]
+    recent_activity: List[RecentActivity]
     generated_at: str
 
     model_config = ConfigDict(from_attributes=True)

@@ -29,8 +29,11 @@ class AnalyticsService:
         inventory_health = self.repo.get_inventory_health()  # Snapshot
 
         top_members = self.repo.get_most_active_members(start_date, end_date, limit=5)
-
         dam = self.repo.get_daily_active_members(start_date, end_date)
+
+        # New data points
+        popular_books = self.repo.get_popular_books(limit=5)
+        recent_activity_list = self.repo.get_recent_activity(limit=10)
 
         # Get daily borrows for the main chart
         daily_borrows_dict = self.repo.get_daily_borrow_counts(start_date, end_date)
@@ -40,12 +43,10 @@ class AnalyticsService:
         ]
 
         # 4. Forecast Logic (Simple Moving Average)
-        # Get last 7 days from NOW (or via End Date?)
-        # Usually forecast is about the future, so valid base is "recent past".
         forecast_start = end_date - timedelta(days=7)
-        recent_activity = self.repo.get_daily_borrow_counts(forecast_start, end_date)
+        recent_counts = self.repo.get_daily_borrow_counts(forecast_start, end_date)
 
-        total_recent = sum(recent_activity.values())
+        total_recent = sum(recent_counts.values())
         days_count = (end_date - forecast_start).days
         if days_count == 0:
             days_count = 1  # avoid div zero
@@ -68,6 +69,8 @@ class AnalyticsService:
             daily_active_members=dam,
             daily_borrows=daily_borrows,
             forecast=forecast,
+            popular_books=popular_books,
+            recent_activity=recent_activity_list,
             generated_at=datetime.now(timezone.utc).isoformat(),
         )
 

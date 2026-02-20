@@ -8,6 +8,8 @@ from app.schemas.analytics import (
     InventoryHealth,
     DailyActiveMember,
     BorrowForecast,
+    PopularBook,
+    RecentActivity,
 )
 from app.services.analytics_service import AnalyticsService
 
@@ -37,6 +39,12 @@ def mock_repo():
         instance.get_inventory_health.return_value = MOCK_INVENTORY
         instance.get_daily_active_members.return_value = MOCK_DAM
         instance.get_daily_borrow_counts.return_value = {date.today(): 6}
+        instance.get_popular_books.return_value = [
+            PopularBook(book_id="b1", title="Book 1", author="A1", borrow_count=5)
+        ]
+        instance.get_recent_activity.return_value = [
+            RecentActivity(id="1", type="borrow", book_title="Book 1", member_name="Alice", timestamp="2024-01-01T12:00:00")
+        ]
         yield instance
 
 
@@ -52,6 +60,8 @@ def test_analytics_summary_structure(client, mock_repo):
     assert (
         data["forecast"]["projected_next_7_days_total"] == 7
     )  # 6 / 7 days = ~1 * 7 = 7
+    assert data["popular_books"][0]["title"] == "Book 1"
+    assert data["recent_activity"][0]["type"] == "borrow"
 
 
 def test_date_filter_validation(client, mock_repo):

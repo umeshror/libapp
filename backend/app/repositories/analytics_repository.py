@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from typing import List, Dict
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, and_, desc, cast, Date
+from sqlalchemy import func, case, and_, desc, cast, Date, select
 from app.models.book import Book
 from app.models.member import Member
 from app.models.borrow_record import BorrowRecord, BorrowStatus
@@ -11,6 +11,8 @@ from app.schemas.analytics import (
     TopMember,
     InventoryHealth,
     DailyActiveMember,
+    PopularBook,
+    RecentActivity,
 )
 
 
@@ -184,3 +186,54 @@ class AnalyticsRepository:
 
         results = self.session.execute(stmt).all()
         return {r[0]: r[1] for r in results}
+
+    def get_popular_books(self, limit: int = 5) -> List[PopularBook]:
+        stmt = (
+            select(
+                Book.id,
+                Book.title,
+                Book.author,
+                func.count(BorrowRecord.id).label("borrow_count"),
+            )
+            .join(BorrowRecord)
+            .group_by(Book.id)
+            .order_by(desc("borrow_count"))
+            .limit(limit)
+        )
+        results = self.session.execute(stmt).all()
+        return [
+            PopularBook(
+                book_id=str(r.id),
+                title=r.title,
+                author=r.author,
+                borrow_count=r.borrow_count,
+            )
+            for r in results
+        ]
+
+    def get_recent_activity(self, limit: int = 10) -> List[RecentActivity]:
+        # Fetch recent borrows and returns
+        stmt = (
+            select(
+                BorrowRecord.id,
+                BorrowRecord.status,
+                Book.title.label("book_title"),
+                Member.name.label("member_name"),
+                func.coalesce(BorrowRecord.returned_at, BorrowRecord.borrowed_at).label("timestamp"),
+            )
+            .join(Book, BorrowRecord.book_id == Book.id)
+            .join(Member, BorrowRecord.member_id == Member.id)
+            .order_by(desc("timestamp"))
+            .limit(limit)
+        )
+        results = self.session.execute(stmt).all()
+        return [
+            RecentActivity(
+                id=str(r.id),
+                type="return" if r.status == BorrowStatus.RETURNED else "borrow",
+                book_title=r.book_title,
+                member_name=r.member_name,
+                timestamp=r.timestamp.isoformat() if r.timestamp else "",
+            )
+            for r in results
+        ]
