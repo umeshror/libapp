@@ -24,7 +24,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # --- Environment/Secret ---
-.env
+# .env
 .env.local
 .env.*.local
 .env.bak

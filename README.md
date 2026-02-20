@@ -327,7 +327,6 @@ The seeder also simulates:
 * Inventory consistency validation
 * Deterministic random seed
 
-The goal is not random noise, but meaningful analytics patterns.
 
 ---
 
@@ -439,7 +438,6 @@ Testing focuses on correctness and invariants:
 * Analytics correctness verification
 * Seeder distribution constraint checks
 
-Tests prioritize data integrity over superficial endpoint checks.
 
 ---
 
@@ -464,7 +462,6 @@ If this system were to scale further, the following enhancements would be introd
 * Background job processing
 * Observability (metrics + tracing)
 
-The current implementation is intentionally designed to evolve toward these improvements without structural rewrites.
 
 ---
 
@@ -480,23 +477,6 @@ It prioritizes:
 * Realistic system behavior
 * Clear scaling path
 
-The objective is to demonstrate engineering maturity, not feature volume.
-
----
-
-## Closing Thoughts
-
-This implementation represents a practical, mid-scale library management system designed with production principles in mind.
-
-It balances:
-
-* Simplicity
-* Scalability
-* Integrity
-* Realism
-* Maintainability
-
-The design decisions reflect tradeoffs that would naturally arise in real-world service evolution.
 
 ---
 
