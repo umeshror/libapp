@@ -83,6 +83,7 @@ class MemberDetailService:
 
             data.append(
                 MemberBorrowHistoryItem(
+                    id=r.id,
                     book_id=r.book_id,
                     book_title=r.book_title,
                     borrowed_at=r.borrowed_at,
