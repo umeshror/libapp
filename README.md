@@ -45,8 +45,8 @@ This repository is structured to reflect how such a system might evolve in a rea
 </p>
 
 <p align="center">
-  <img src="media/5.png" width="45%">
-  <img src="media/6.png" width="45%">
+  <img src="media/7.png" width="45%">
+  <img src="media/8.png" width="45%">
 </p>
 
 ---
