@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project implements a production-minded Library Management Service built to demonstrate clean architecture, data integrity, and scalable design principles.
+This project implements a Library Management Service built to demonstrate clean architecture, data integrity, and scalable design principles.
 
 While the functional scope resembles a typical take-home assignment (books, members, borrowing, returning), the implementation intentionally focuses on:
 
@@ -22,6 +22,70 @@ The system supports:
 * Analytics and entity-level insights
 
 This repository is structured to reflect how such a system might evolve in a real-world environment.
+
+---
+
+## Tech Stack
+
+### Backend
+- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.9+)
+- **ORM**: [SQLAlchemy 2.0](https://www.sqlalchemy.org/)
+- **Migrations**: [Alembic](https://alembic.sqlalchemy.org/)
+- **Validation**: [Pydantic v2](https://docs.pydantic.dev/)
+- **Testing**: [Pytest](https://docs.pytest.org/)
+
+### Frontend
+- **Framework**: [Next.js 13.5 (App Router)](https://nextjs.org/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **State Management**: [TanStack Query (React Query)](https://tanstack.com/query/latest)
+- **Charts**: [Recharts](https://recharts.org/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+
+### Infrastructure
+- **Database**: [PostgreSQL 15+](https://www.postgresql.org/)
+- **Containerization**: [Docker & Docker Compose](https://www.docker.com/)
+- **Automation**: [GNU Make](https://www.gnu.org/software/make/)
+
+---
+
+## Prerequisites
+
+Before getting started, ensure you have the following installed:
+
+- **Docker & Docker Compose**: (Required for Database)
+- **Python 3.9+**: (Required for Backend)
+- **Node.js 18+**: (Required for Frontend)
+- **GNU Make**: (Recommended for easy setup)
+
+---
+
+## Project Structure
+
+```text
+.
+├── backend/               # FastAPI Application
+│   ├── alembic/           # Database Migrations
+│   ├── app/
+│   │   ├── api/          # Route Handlers
+│   │   ├── core/         # Configuration & Global Constants
+│   │   ├── db/           # Session Management
+│   │   ├── models/       # SQLAlchemy Domain Models
+│   │   ├── repositories/ # Data Access Layer
+│   │   ├── schemas/      # Pydantic DTOs
+│   │   ├── seeds/        # Data Seeding Logic
+│   │   └── services/     # Business Logic Layer
+│   ├── tests/            # Pytest Suite
+│   └── requirements.txt
+├── frontend/              # Next.js Application
+│   ├── app/              # App Router Pages & Layouts
+│   ├── components/       # Shared UI Components
+│   ├── hooks/            # Custom React Hooks
+│   ├── lib/              # API Clients & Utilities
+│   └── types/            # TypeScript Interfaces
+├── Makefile               # Project Automation Root
+└── docker-compose.yml     # Infrastructure Orchestration
+```
 
 ---
 
@@ -185,6 +249,26 @@ This avoids:
 
 ---
 
+## Frontend Architecture
+
+The frontend is built for performance and maintainability using modern React patterns:
+
+### Server State Management
+We use **React Query** for all data fetching. This provides:
+- Automatic caching and revalidation
+- Loading and error states out of the box
+- Simplified pagination and search synchronization
+
+### Component Design
+- **Atomic Components**: Reusable UI elements (Buttons, Cards, Modals).
+- **Page-Level Layouts**: High-level structural components.
+- **Client-Side Navigation**: leverages Next.js `Link` for instant page transitions.
+
+### Typescript Integration
+The system uses strict TypeScript interfaces shared across all components to ensure API payload consistency.
+
+---
+
 ## Analytics
 
 The system includes analytics endpoints that provide:
@@ -306,6 +390,21 @@ The easiest way to get started is using the provided `Makefile`.
 
 ---
 
+## Environment Configuration
+
+The system is designed to work with minimal configuration out of the box. Configuration is managed via `.env` files.
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `POSTGRES_USER` | `user` | Database username |
+| `POSTGRES_PASSWORD` | `password` | Database password |
+| `POSTGRES_DB` | `library` | Database name |
+| `POSTGRES_SERVER` | `localhost` | Database host (use `db` inside Docker) |
+| `POSTGRES_PORT` | `5432` | Database port |
+| `ENVIRONMENT` | `development` | Runtime environment |
+
+---
+
 ## Developer Workflow
 
 Use these commands frequently during development to maintain code quality:
@@ -394,3 +493,25 @@ It balances:
 * Maintainability
 
 The design decisions reflect tradeoffs that would naturally arise in real-world service evolution.
+
+---
+
+## Troubleshooting
+
+### Common Port Conflicts
+The system defaults to ports `8000` (Backend) and `3003` (Frontend).
+
+- **EADDRINUSE (8000)**: Backend is already running or another process is using it. Kill it with:
+  ```bash
+  lsof -ti:8000 | xargs kill -9
+  ```
+- **EADDRINUSE (3003)**: Frontend is already running. Kill it with:
+  ```bash
+  lsof -ti:3003 | xargs kill -9
+  ```
+
+### Database Connectivity
+If the backend cannot connect to PostgreSQL:
+1. Ensure the container is running: `make docker-ps`
+2. Check logs: `docker-compose logs db`
+3. Try a fresh start: `make db-fresh`
