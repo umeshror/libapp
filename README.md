@@ -23,29 +23,19 @@ The system supports:
 
 This repository is structured to reflect how such a system might evolve in a real-world environment.
 
-## System Demo
+# Library Management System
 
-![System Demo Walkthrough](Library-Management-System.webm)
+## 🎬 Demo
+![Demo](Library-Management-System.gif)
 
----
-
-## Gallery
-
-````carousel
+## 📸 Screenshots
 ![Dashboard](media/1.png)
-<!-- slide -->
 ![Books List](media/2.png)
-<!-- slide -->
 ![Book Details](media/3.png)
-<!-- slide -->
 ![Borrow Modal](media/4.png)
-<!-- slide -->
 ![Members List](media/5.png)
-<!-- slide -->
 ![Member Details](media/6.png)
-<!-- slide -->
 ![Analytics Charts](media/7.png)
-````
 
 ---
 
