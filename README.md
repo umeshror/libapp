@@ -30,6 +30,9 @@ This repository is structured to reflect how such a system might evolve in a rea
 
 
 <p align="center">
+  <img src="media/dashboard.png" width="60%">
+</p>
+<p align="center">
   <img src="media/1.png" width="45%">
   <img src="media/2.png" width="45%">
 </p>
