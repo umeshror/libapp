@@ -29,6 +29,26 @@ This repository is structured to reflect how such a system might evolve in a rea
 
 ---
 
+## Gallery
+
+````carousel
+![Dashboard](/Users/umeshsaruk/pprojects/libapp/media/1.png)
+<!-- slide -->
+![Books List](/Users/umeshsaruk/pprojects/libapp/media/2.png)
+<!-- slide -->
+![Book Details](/Users/umeshsaruk/pprojects/libapp/media/3.png)
+<!-- slide -->
+![Borrow Modal](/Users/umeshsaruk/pprojects/libapp/media/4.png)
+<!-- slide -->
+![Members List](/Users/umeshsaruk/pprojects/libapp/media/5.png)
+<!-- slide -->
+![Member Details](/Users/umeshsaruk/pprojects/libapp/media/6.png)
+<!-- slide -->
+![Analytics Charts](/Users/umeshsaruk/pprojects/libapp/media/7.png)
+````
+
+---
+
 ## Tech Stack
 
 ### Backend
