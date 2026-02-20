@@ -10,6 +10,7 @@ import Pagination from '../../components/Pagination';
 import SortSelect from '../../components/SortSelect';
 import { toast } from 'sonner';
 import ConfirmationModal from '../../components/ConfirmationModal';
+import { useReturnBook } from '../../hooks/useReturnBook';
 
 function BorrowsContent() {
     const router = useRouter();
@@ -64,17 +65,9 @@ function BorrowsContent() {
         updateUrl({ sort_by: field, order: newOrder, page: 1 });
     };
 
-    const returnMutation = useMutation({
-        mutationFn: (borrowId: string) => fetchAPI(`/borrows/${borrowId}/return/`, { method: 'POST' }),
+    const { returnBook, isPending: isReturning } = useReturnBook({
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['borrows'] });
-            queryClient.invalidateQueries({ queryKey: ['books'] });
-            queryClient.invalidateQueries({ queryKey: ['members'] });
-            toast.success('Book returned successfully');
             setConfirmingReturn(null);
-        },
-        onError: (err: Error) => {
-            toast.error(err.message || 'Failed to return book');
         }
     });
 
@@ -84,7 +77,7 @@ function BorrowsContent() {
 
     async function executeReturn() {
         if (!confirmingReturn) return;
-        returnMutation.mutate(confirmingReturn.id);
+        returnBook(confirmingReturn.id);
     }
 
     return (
@@ -151,10 +144,10 @@ function BorrowsContent() {
                                             {record.status === 'borrowed' && (
                                                 <button
                                                     onClick={() => handleReturn(record.id, record.book?.title || 'Unknown Book')}
-                                                    disabled={returnMutation.isPending && returnMutation.variables === record.id}
+                                                    disabled={isReturning}
                                                     className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50"
                                                 >
-                                                    {returnMutation.isPending && returnMutation.variables === record.id ? 'Returning...' : 'Return'}
+                                                    {isReturning ? 'Returning...' : 'Return'}
                                                 </button>
                                             )}
                                         </td>
@@ -174,7 +167,7 @@ function BorrowsContent() {
                 isOpen={!!confirmingReturn}
                 onClose={() => setConfirmingReturn(null)}
                 onConfirm={executeReturn}
-                isLoading={returnMutation.isPending}
+                isLoading={isReturning}
                 title="Confirm Return"
                 description={`Are you sure you want to return "${confirmingReturn?.bookTitle}"?`}
                 confirmText="Confirm Return"

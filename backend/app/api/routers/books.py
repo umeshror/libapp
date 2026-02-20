@@ -4,6 +4,7 @@ from uuid import UUID
 from app.api.deps import get_db
 from app.services.book_service import BookService
 from app.schemas import BookCreate, BookUpdate, BookResponse, PaginatedResponse
+from app.schemas.book_details import BookDetailResponse
 from typing import Optional
 
 router = APIRouter()
@@ -46,3 +47,21 @@ def update_book(book_id: UUID, book_in: BookUpdate, db: Session = Depends(get_db
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
     return book
+
+
+@router.get("/{book_id}/details", response_model=BookDetailResponse)
+def get_book_details(
+    book_id: UUID,
+    history_limit: int = 10,
+    history_offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """
+    Get comprehensive book details including:
+    - Core metadata
+    - Current active borrowers
+    - Paginated borrow history
+    - Analytics and insights
+    """
+    service = BookService(db)
+    return service.get_book_details(book_id, history_limit, history_offset)

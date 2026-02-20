@@ -8,7 +8,8 @@ import {
     BorrowHistoryItem,
     BorrowerInfo
 } from '@/types'
-import { getBookDetails, returnBook, borrowBook } from '@/lib/api'
+import { getBookDetails, borrowBook } from '@/lib/api'
+import { useReturnBook } from '@/hooks/useReturnBook'
 import { toast } from 'sonner'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import MemberSelectionModal from '@/components/MemberSelectionModal'
@@ -68,24 +69,20 @@ export default function BookDetailPage() {
         fetchData(newOffset)
     }
 
+    const { returnBook, isPending: isReturning } = useReturnBook({
+        onSuccess: () => {
+            setConfirmingReturn(null)
+            fetchData(historyOffset)
+        }
+    })
+
     const handleReturn = async (borrowId: string, memberName: string) => {
         setConfirmingReturn({ id: borrowId, name: memberName })
     }
 
     const executeReturn = async () => {
         if (!confirmingReturn) return
-        try {
-            setReturningId(confirmingReturn.id)
-            await returnBook(confirmingReturn.id)
-            toast.success(`Book returned from ${confirmingReturn.name} successfully`)
-            setConfirmingReturn(null)
-            await fetchData(historyOffset)
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Return failed'
-            toast.error(msg)
-        } finally {
-            setReturningId(null)
-        }
+        returnBook(confirmingReturn.id)
     }
 
     const handleMemberSelect = (memberId: string, memberName: string) => {
@@ -268,11 +265,11 @@ export default function BookDetailPage() {
                                                 <td className="px-6 py-4 text-right whitespace-nowrap">
                                                     <button
                                                         onClick={() => handleReturn(borrower.borrow_id, borrower.name)}
-                                                        disabled={returningId === borrower.borrow_id}
+                                                        disabled={isReturning}
                                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-blue-600 transition-all shadow-sm disabled:opacity-50"
                                                         title="Process Return"
                                                     >
-                                                        {returningId === borrower.borrow_id ? (
+                                                        {isReturning ? (
                                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                         ) : (
                                                             <RotateCcw className="w-3.5 h-3.5" />
@@ -427,7 +424,7 @@ export default function BookDetailPage() {
                 isOpen={!!confirmingReturn}
                 onClose={() => setConfirmingReturn(null)}
                 onConfirm={executeReturn}
-                isLoading={returningId === confirmingReturn?.id}
+                isLoading={isReturning}
                 title="Confirm Return"
                 description={`Are you sure you want to return this book from "${confirmingReturn?.name}"?`}
                 confirmText="Confirm Return"

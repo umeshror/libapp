@@ -10,7 +10,7 @@ class BorrowerInfo(BaseModel):
     member_id: UUID
     name: str
     borrowed_at: datetime
-    due_date: datetime
+    due_date: Optional[datetime] = None
     days_until_due: int
 
     model_config = ConfigDict(from_attributes=True)

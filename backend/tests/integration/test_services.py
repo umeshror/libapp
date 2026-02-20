@@ -117,3 +117,81 @@ def test_no_inventory(db_session):
 
     with pytest.raises(InventoryUnavailableError):
         borrow_service.borrow_book(book.id, member.id)
+
+def test_book_service_details_consolidation(db_session):
+    book_service = BookService(db_session)
+    from app.repositories.borrow_repository import BorrowRepository
+    from app.repositories.member_repository import MemberRepository
+    from app.schemas import BorrowRecordCreate
+    
+    borrow_repo = BorrowRepository(db_session)
+    
+    # Setup data
+    book = book_service.create_book(
+        BookCreate(title="Consolidated Book", author="Author", isbn="C1", total_copies=5, available_copies=5)
+    )
+    member = MemberRepository(db_session).create(
+        MemberCreate(name="Tester", email="test@e.com")
+    )
+    
+    # 1. Active borrow
+    borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
+    
+    # 2. Returned borrow (history)
+    b2 = borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
+    from app.models.borrow_record import BorrowRecord, BorrowStatus
+    from datetime import datetime, timezone
+    
+    db_borrow = db_session.get(BorrowRecord, b2.id)
+    db_borrow.status = BorrowStatus.RETURNED
+    db_borrow.returned_at = datetime.now(timezone.utc)
+    db_session.add(db_borrow)
+    db_session.commit()
+    
+    # Test Service Method
+    details = book_service.get_book_details(book.id)
+    
+    assert details.book.id == book.id
+    assert len(details.current_borrowers) == 1
+    assert details.current_borrowers[0].name == "Tester"
+    assert details.borrow_history.meta["total"] == 1
+    assert details.analytics.total_times_borrowed == 2
+
+def test_member_service_details_consolidation(db_session):
+    member_service = MemberService(db_session)
+    from app.repositories.book_repository import BookRepository
+    from app.repositories.borrow_repository import BorrowRepository
+    from app.schemas import BorrowRecordCreate
+    
+    book_repo = BookRepository(db_session)
+    borrow_repo = BorrowRepository(db_session)
+    
+    # Setup data
+    member = member_service.create_member(MemberCreate(name="Member Detail Test", email="detail@test.com"))
+    book = book_repo.create(BookCreate(title="B1", author="A1", isbn="ISBN1"))
+    
+    # Borrow and return for history
+    b1 = borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
+    from app.models.borrow_record import BorrowRecord, BorrowStatus
+    from datetime import datetime, timezone
+    
+    db_b = db_session.get(BorrowRecord, b1.id)
+    db_b.status = BorrowStatus.RETURNED
+    db_b.returned_at = datetime.now(timezone.utc)
+    db_session.add(db_b)
+    db_session.commit()
+    
+    # Test Details
+    core = member_service.get_member_details(member.id)
+    assert core.member.id == member.id
+    assert core.analytics_summary.total_books_borrowed == 1
+    
+    # Test History
+    history_res = member_service.get_member_borrow_history(member.id, limit=10, offset=0, status="all", sort="borrowed_at", order="desc")
+    assert history_res.meta["total"] == 1
+    assert history_res.data[0].book_title == "B1"
+    
+    # Test Analytics
+    analytics = member_service.get_member_analytics(member.id)
+    assert analytics.total_books_borrowed == 1
+    assert analytics.risk_level in ["LOW", "MEDIUM", "HIGH"]

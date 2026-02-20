@@ -1,6 +1,7 @@
 from typing import Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
+from fastapi import HTTPException
 from app.repositories.book_repository import BookRepository
 from app.schemas import (
     BookCreate,
@@ -9,6 +10,7 @@ from app.schemas import (
     PaginatedResponse,
     PaginationMeta,
 )
+from app.schemas.book_details import BookDetailResponse, BorrowHistoryResponse
 
 
 class BookService:
@@ -76,3 +78,39 @@ class BookService:
 
     def update_book(self, book_id: UUID, book_in: BookUpdate) -> Optional[BookResponse]:
         return self.repo.update(book_id, book_in)
+
+    def get_book_details(
+        self, book_id: UUID, history_limit: int = 10, history_offset: int = 0
+    ) -> BookDetailResponse:
+        # 1. Fetch Core Book Details
+        book = self.repo.get_with_lock(book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Book not found")
+
+        # 2. Fetch Current Borrowers
+        current_borrowers = self.repo.get_current_borrowers(book_id)
+
+        # 3. Fetch Borrow History (Paginated)
+        history_items, total_history = self.repo.get_borrow_history(
+            book_id, history_limit, history_offset
+        )
+
+        borrow_history = BorrowHistoryResponse(
+            data=history_items,
+            meta={
+                "total": total_history,
+                "limit": history_limit,
+                "offset": history_offset,
+                "has_more": (history_offset + history_limit) < total_history,
+            },
+        )
+
+        # 4. Fetch Analytics
+        analytics = self.repo.get_analytics(book_id, book)
+
+        return BookDetailResponse(
+            book=BookResponse.model_validate(book),
+            current_borrowers=current_borrowers,
+            borrow_history=borrow_history,
+            analytics=analytics,
+        )

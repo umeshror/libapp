@@ -10,8 +10,6 @@ from app.api.routers import (
     members,
     borrows,
     analytics,
-    book_details,
-    member_details,
 )
 from app.core.exceptions import LibraryAppError
 from app.api.exception_handlers import library_exception_handler
@@ -71,8 +69,6 @@ def get_application() -> FastAPI:
     application.include_router(
         analytics.router, prefix="/analytics", tags=["analytics"]
     )
-    application.include_router(book_details.router, prefix="/books", tags=["books"])
-    application.include_router(member_details.router, tags=["members"])
 
     # Register Exception Handlers
     application.add_exception_handler(LibraryAppError, library_exception_handler)  # type: ignore

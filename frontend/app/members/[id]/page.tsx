@@ -12,9 +12,9 @@ import {
 import {
     getMemberCoreDetails,
     getMemberBorrowHistory,
-    getMemberAnalytics,
-    returnBook
+    getMemberAnalytics
 } from '@/lib/api'
+import { useReturnBook } from '@/hooks/useReturnBook'
 import { toast } from 'sonner'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import {
@@ -116,24 +116,20 @@ export default function MemberDetailPage() {
         }
     }, [page, fetchHistoryOnly, loading])
 
+    const { returnBook, isPending: isReturning } = useReturnBook({
+        onSuccess: () => {
+            setConfirmingReturn(null)
+            fetchData()
+        }
+    })
+
     const handleReturn = async (borrowId: string, bookTitle: string) => {
         setConfirmingReturn({ id: borrowId, title: bookTitle })
     }
 
     const executeReturn = async () => {
         if (!confirmingReturn) return
-        try {
-            setReturningId(confirmingReturn.id)
-            await returnBook(confirmingReturn.id)
-            toast.success(`"${confirmingReturn.title}" returned successfully`)
-            setConfirmingReturn(null)
-            await fetchData()
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Return failed'
-            toast.error(msg)
-        } finally {
-            setReturningId(null)
-        }
+        returnBook(confirmingReturn.id)
     }
 
     const getRiskBadge = (level: string) => {
@@ -259,11 +255,11 @@ export default function MemberDetailPage() {
                                                     )}
                                                     <button
                                                         onClick={() => handleReturn(record.id, record.book_title)}
-                                                        disabled={returningId === record.id}
+                                                        disabled={isReturning}
                                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-indigo-600 transition-all shadow-sm disabled:opacity-50"
                                                         title="Process Return"
                                                     >
-                                                        {returningId === record.id ? (
+                                                        {isReturning ? (
                                                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                                         ) : (
                                                             <RotateCcw className="w-3.5 h-3.5" />
@@ -493,7 +489,7 @@ export default function MemberDetailPage() {
                 isOpen={!!confirmingReturn}
                 onClose={() => setConfirmingReturn(null)}
                 onConfirm={executeReturn}
-                isLoading={returningId === confirmingReturn?.id}
+                isLoading={isReturning}
                 title="Confirm Return"
                 description={`Are you sure you want to return "${confirmingReturn?.title}"?`}
                 confirmText="Confirm Return"

@@ -23,7 +23,7 @@ class MemberBorrowHistoryItem(BaseModel):
     book_id: UUID
     book_title: str
     borrowed_at: datetime
-    due_date: datetime
+    due_date: Optional[datetime] = None
     returned_at: Optional[datetime] = None
     duration_days: Optional[int] = None
     was_overdue: bool

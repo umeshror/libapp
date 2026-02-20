@@ -1,9 +1,13 @@
-from typing import Optional
+from datetime import datetime, timezone
+from typing import List, Optional, Tuple
 from uuid import UUID
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.models.book import Book
+from app.models.borrow_record import BorrowRecord, BorrowStatus
+from app.models.member import Member
 from app.schemas import BookCreate, BookUpdate, BookResponse
+from app.schemas.book_details import BorrowerInfo, BorrowHistoryItem, BookAnalytics
 
 
 class BookRepository:
@@ -110,3 +114,197 @@ class BookRepository:
         self.session.commit()
         self.session.refresh(db_obj)
         return BookResponse.model_validate(db_obj)
+
+    def get_current_borrowers(self, book_id: UUID) -> List[BorrowerInfo]:
+        """
+        Get active borrowers (status is BORROWED).
+        """
+        stmt = (
+            select(
+                Member.id,
+                Member.name,
+                BorrowRecord.borrowed_at,
+                BorrowRecord.due_date,
+                BorrowRecord.id.label("borrow_id"),
+            )
+            .join(BorrowRecord, Member.id == BorrowRecord.member_id)
+            .where(
+                BorrowRecord.book_id == book_id,
+                BorrowRecord.status == BorrowStatus.BORROWED,
+            )
+            .order_by(BorrowRecord.due_date.asc())
+        )
+
+        results = self.session.execute(stmt).all()
+
+        borrower_infos = []
+        for r in results:
+            due = r.due_date
+            if due:
+                if due.tzinfo is None:
+                    due = due.replace(tzinfo=timezone.utc)
+                delta = due - datetime.now(timezone.utc)
+                days_until = delta.days
+            else:
+                days_until = 0
+
+            borrower_infos.append(
+                BorrowerInfo(
+                    borrow_id=r.borrow_id,
+                    member_id=r.id,
+                    name=r.name,
+                    borrowed_at=r.borrowed_at,
+                    due_date=r.due_date,
+                    days_until_due=days_until,
+                )
+            )
+
+        return borrower_infos
+
+    def get_borrow_history(
+        self, book_id: UUID, limit: int, offset: int
+    ) -> Tuple[List[BorrowHistoryItem], int]:
+        """
+        Get past borrowers (status is RETURNED), paginated.
+        Returns (items, total_count).
+        """
+        base_stmt = (
+            select(
+                Member.id,
+                Member.name,
+                BorrowRecord.borrowed_at,
+                BorrowRecord.returned_at,
+            )
+            .join(Member, BorrowRecord.member_id == Member.id)
+            .where(
+                BorrowRecord.book_id == book_id,
+                BorrowRecord.status == BorrowStatus.RETURNED,
+                BorrowRecord.returned_at.is_not(None),
+            )
+        )
+
+        # Count total
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
+        total_count = self.session.execute(count_stmt).scalar() or 0
+
+        # Fetch paginated results
+        stmt = (
+            base_stmt.order_by(BorrowRecord.returned_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        results = self.session.execute(stmt).all()
+
+        items = []
+        for r in results:
+            duration = 0
+            if r.returned_at and r.borrowed_at:
+                duration = (r.returned_at - r.borrowed_at).days
+
+            items.append(
+                BorrowHistoryItem(
+                    member_id=r.id,
+                    member_name=r.name,
+                    borrowed_at=r.borrowed_at,
+                    returned_at=r.returned_at,
+                    duration_days=duration,
+                )
+            )
+
+        return items, total_count
+
+    def get_analytics(self, book_id: UUID, book: Book) -> BookAnalytics:
+        # 1. Total times borrowed
+        total_stmt = select(func.count(BorrowRecord.id)).where(BorrowRecord.book_id == book_id)
+        total_borrows = self.session.execute(total_stmt).scalar() or 0
+
+        # 2. Avg duration (only for returned)
+        if self.session.bind and self.session.bind.dialect.name == "sqlite":
+            diff_expr = (func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)) * 86400
+        else:
+            diff_expr = func.extract("epoch", BorrowRecord.returned_at - BorrowRecord.borrowed_at)
+
+        avg_stmt = select(func.avg(diff_expr)).where(
+            BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
+        )
+        avg_duration = self.session.execute(avg_stmt).scalar()
+        avg_days = (float(avg_duration) / 86400.0) if avg_duration is not None else 0.0
+
+        # 3. Last borrowed
+        last_stmt = select(func.max(BorrowRecord.borrowed_at)).where(BorrowRecord.book_id == book_id)
+        last_borrowed = self.session.execute(last_stmt).scalar()
+        if isinstance(last_borrowed, str):
+            from dateutil.parser import parse
+            last_borrowed = parse(last_borrowed)
+
+        # 4. Popularity Rank
+        subq = (
+            select(
+                BorrowRecord.book_id, func.count(BorrowRecord.id).label("cnt")
+            )
+            .group_by(BorrowRecord.book_id)
+            .subquery()
+        )
+        rank_stmt = (
+            select(func.count())
+            .select_from(subq)
+            .where(subq.c.cnt > total_borrows)
+        )
+        rank = (self.session.execute(rank_stmt).scalar() or 0) + 1
+
+        # 5. Availability Status
+        if book.available_copies == 0:
+            status = "OUT_OF_STOCK"
+        elif book.available_copies <= 1:
+            status = "LOW_STOCK"
+        else:
+            status = "AVAILABLE"
+
+        # Insights
+        if self.session.bind and self.session.bind.dialect.name == "sqlite":
+            bounds_stmt = (
+                select(
+                    func.min(func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)),
+                    func.max(func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)),
+                )
+                .where(
+                    BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
+                )
+            )
+            bounds = self.session.execute(bounds_stmt).first()
+            min_dur = int(bounds[0]) if bounds and bounds[0] is not None else 0
+            max_dur = int(bounds[1]) if bounds and bounds[1] is not None else 0
+        else:
+            bounds_stmt = (
+                select(
+                    func.min(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
+                    func.max(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
+                )
+                .where(
+                    BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
+                )
+            )
+            bounds = self.session.execute(bounds_stmt).first()
+            min_dur = bounds[0].days if bounds and bounds[0] is not None else 0
+            max_dur = bounds[1].days if bounds and bounds[1] is not None else 0
+
+        # Return delays (returned > due_date)
+        delays_stmt = (
+            select(func.count(BorrowRecord.id))
+            .where(
+                BorrowRecord.book_id == book_id,
+                BorrowRecord.returned_at > BorrowRecord.due_date,
+            )
+        )
+        delays = self.session.execute(delays_stmt).scalar() or 0
+
+        return BookAnalytics(
+            total_times_borrowed=total_borrows,
+            average_borrow_duration=round(avg_days, 1),
+            last_borrowed_at=last_borrowed,
+            popularity_rank=rank,
+            availability_status=status,
+            longest_borrow_duration=max_dur,
+            shortest_borrow_duration=min_dur,
+            return_delay_count=delays,
+        )

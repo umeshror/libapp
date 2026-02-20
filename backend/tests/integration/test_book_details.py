@@ -20,6 +20,7 @@ def test_get_book_details_full_lifecycle(client):
     mock_book.updated_at = datetime.utcnow()
 
     mock_borrower = BorrowerInfo(
+        borrow_id=uuid4(),
         member_id=uuid4(),
         name="Alice",
         borrowed_at=datetime.utcnow(),
@@ -46,9 +47,9 @@ def test_get_book_details_full_lifecycle(client):
         return_delay_count=0,
     )
 
-    with patch("app.services.book_detail_service.BookDetailRepository") as MockRepo:
+    with patch("app.services.book_service.BookRepository") as MockRepo:
         repo_instance = MockRepo.return_value
-        repo_instance.get_book.return_value = mock_book
+        repo_instance.get_with_lock.return_value = mock_book
         repo_instance.get_current_borrowers.return_value = [mock_borrower]
         repo_instance.get_borrow_history.return_value = ([mock_history_item], 50)
         repo_instance.get_analytics.return_value = mock_analytics
@@ -67,9 +68,9 @@ def test_get_book_details_full_lifecycle(client):
 
 
 def test_get_book_details_not_found(client):
-    with patch("app.services.book_detail_service.BookDetailRepository") as MockRepo:
+    with patch("app.services.book_service.BookRepository") as MockRepo:
         repo_instance = MockRepo.return_value
-        repo_instance.get_book.return_value = None
+        repo_instance.get_with_lock.return_value = None
 
         uuid = uuid4()
         response = client.get(f"/books/{uuid}/details")
