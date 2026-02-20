@@ -23,6 +23,10 @@ The system supports:
 
 This repository is structured to reflect how such a system might evolve in a real-world environment.
 
+## System Demo
+
+![System Demo Walkthrough](/Users/umeshsaruk/pprojects/libapp/Library-Management-System.webm)
+
 ---
 
 ## Tech Stack
