@@ -78,12 +78,12 @@ function BooksContent() {
 
     const borrowMutation = useMutation({
         mutationFn: ({ bookId, memberId }: { bookId: string, memberId: string }) => borrowBook({ book_id: bookId, member_id: memberId }),
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['books'] });
             setBorrowingBook(null);
             setMemberQuery('');
-            setActionSuccess(`Book borrowed successfully!`);
-            setTimeout(() => setActionSuccess(null), 5000);
+            // Redirect to member detail page
+            router.push(`/members/${variables.memberId}`);
         },
         onError: (err: Error) => {
             setBorrowError(err.message);
