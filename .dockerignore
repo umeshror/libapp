@@ -1,0 +1,40 @@
+# Version Control
+.git
+.gitignore
+
+# Dependencies
+node_modules
+**/node_modules
+.venv
+vh
+env
+
+# Build Artifacts
+.next
+**/ .next
+out
+build
+dist
+
+# Caches and Temporary Files
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+*.log
+.DS_Store
+
+# Local Configuration
+.env
+.env*.local
+*.bak
+
+# Project Documentation/Orchestration (usually not needed in image)
+README.md
+Makefile
+docker-compose.yml
+find_docstrings.py
+
+# Database
+*.db
