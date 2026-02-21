@@ -2,8 +2,8 @@ import logging
 from datetime import timezone
 from faker import Faker
 from sqlalchemy.orm import Session
-from app.services.book_service import BookService
-from app.schemas import BookCreate
+from app.domains.books.service import BookService
+from app.domains.books.schemas import BookCreate
 
 logger = logging.getLogger(__name__)
 

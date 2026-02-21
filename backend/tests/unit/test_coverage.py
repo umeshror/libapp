@@ -1,10 +1,11 @@
 import pytest
 from uuid import uuid4
-from app.services.borrow_service import BorrowService
-from app.services.book_service import BookService
-from app.services.member_service import MemberService
-from app.repositories.book_repository import BookRepository
-from app.schemas import BookCreate, MemberCreate, BookUpdate
+from app.domains.borrows.service import BorrowService
+from app.domains.books.service import BookService
+from app.domains.members.service import MemberService
+from app.domains.books.repository import BookRepository
+from app.domains.books.schemas import BookCreate, BookUpdate
+from app.domains.members.schemas import MemberCreate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -117,7 +118,7 @@ def test_service_wrappers(db_session):
 
 
 def test_member_repository_coverage(db_session):
-    from app.repositories.member_repository import MemberRepository
+    from app.domains.members.repository import MemberRepository
 
     repo = MemberRepository(db_session)
     result = repo.list()

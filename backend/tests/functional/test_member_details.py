@@ -23,7 +23,7 @@ def test_book(db_session):
 
 
 def test_get_member_core_details(client, db_session, test_member):
-    response = client.get(f"/members/{test_member.id}")
+    response = client.get(f"/api/v1/members/{test_member.id}")
     assert response.status_code == 200, f"Error: {response.text}"
     data = response.json()
     assert "member" in data, f"Key 'member' not in {data}"
@@ -53,7 +53,7 @@ def test_get_member_borrow_history_pagination(
     db_session.commit()
 
     # Test Page 1
-    response = client.get(f"/members/{test_member.id}/borrows?limit=10&offset=0")
+    response = client.get(f"/api/v1/members/{test_member.id}/borrows?limit=10&offset=0")
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 10
@@ -61,7 +61,7 @@ def test_get_member_borrow_history_pagination(
     assert data["meta"]["has_more"] is True
 
     # Test Page 2
-    response = client.get(f"/members/{test_member.id}/borrows?limit=10&offset=10")
+    response = client.get(f"/api/v1/members/{test_member.id}/borrows?limit=10&offset=10")
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 5
@@ -94,7 +94,7 @@ def test_get_member_analytics(client, db_session, test_member, test_book):
     db_session.add(record2)
     db_session.commit()
 
-    response = client.get(f"/members/{test_member.id}/analytics")
+    response = client.get(f"/api/v1/members/{test_member.id}/analytics")
     assert response.status_code == 200
     data = response.json()
     assert data["total_books_borrowed"] >= 2

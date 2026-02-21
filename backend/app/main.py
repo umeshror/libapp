@@ -1,16 +1,13 @@
+"""Application factory for the Neighborhood Library Service."""
+
 import time
 import uuid
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.api.deps import get_db
-from app.api.routers import (
-    books,
-    members,
-    borrows,
-    analytics,
-)
+from app.shared.deps import get_db
+from app.api.v1 import v1_router
 from app.core.exceptions import LibraryAppError
 from app.api.exception_handlers import library_exception_handler
 from app.core.logging import logger, request_id_ctx
@@ -19,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 def get_application() -> FastAPI:
+    """Build and configure the FastAPI application."""
     application = FastAPI(
         title="Neighborhood Library Service",
         description="API for managing books, members, and borrows.",
@@ -37,11 +35,9 @@ def get_application() -> FastAPI:
     # Middleware: Request ID & Logging
     @application.middleware("http")
     async def request_middleware(request: Request, call_next):
-        # 1. Request ID
         req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
         token = request_id_ctx.set(req_id)
 
-        # 2. Logging
         start_time = time.time()
         logger.info(f"Started {request.method} {request.url.path}")
 
@@ -49,7 +45,6 @@ def get_application() -> FastAPI:
             response = await call_next(request)
             process_time = time.time() - start_time
 
-            # Inject header
             response.headers["X-Request-ID"] = req_id
 
             logger.info(
@@ -62,21 +57,17 @@ def get_application() -> FastAPI:
         finally:
             request_id_ctx.reset(token)
 
-    # Include Routers
-    application.include_router(books.router, prefix="/books", tags=["books"])
-    application.include_router(members.router, prefix="/members", tags=["members"])
-    application.include_router(borrows.router, tags=["borrows"])
-    application.include_router(
-        analytics.router, prefix="/analytics", tags=["analytics"]
-    )
+    # Versioned API routes
+    application.include_router(v1_router, prefix="/api/v1")
 
     # Register Exception Handlers
     application.add_exception_handler(LibraryAppError, library_exception_handler)  # type: ignore
 
+    # Infrastructure endpoints (un-versioned)
     @application.get("/health")
     def health_check(db: Session = Depends(get_db)):
+        """Database connectivity health check."""
         try:
-            # Simple query to verify DB connection
             db.execute(text("SELECT 1"))
             return {"status": "ok", "db": "connected"}
         except Exception as e:
@@ -88,6 +79,7 @@ def get_application() -> FastAPI:
 
     @application.get("/metrics")
     def get_metrics():
+        """Return in-memory application metrics."""
         return metrics.get_stats()
 
     return application

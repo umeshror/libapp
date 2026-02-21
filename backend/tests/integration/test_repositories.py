@@ -1,9 +1,11 @@
 import pytest
 import uuid
-from app.repositories.book_repository import BookRepository
-from app.repositories.member_repository import MemberRepository
-from app.repositories.borrow_repository import BorrowRepository
-from app.schemas import BookCreate, BookUpdate, MemberCreate, BorrowRecordCreate
+from app.domains.books.repository import BookRepository
+from app.domains.members.repository import MemberRepository
+from app.domains.borrows.repository import BorrowRepository
+from app.domains.books.schemas import BookCreate, BookUpdate
+from app.domains.members.schemas import MemberCreate
+from app.domains.borrows.schemas import BorrowRecordCreate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

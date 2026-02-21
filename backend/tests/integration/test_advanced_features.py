@@ -7,7 +7,7 @@ def test_pagination(client):
     # Seed 25 books
     for i in range(25):
         client.post(
-            "/books/",
+            "/api/v1/books/",
             json={
                 "title": f"Book {i}",
                 "author": "Auth",
@@ -18,7 +18,7 @@ def test_pagination(client):
         )
 
     # Page 1 (limit 20, offset 0)
-    response = client.get("/books/?limit=20&offset=0")
+    response = client.get("/api/v1/books/?limit=20&offset=0")
     assert response.status_code == 200
     data = response.json()
     assert len(data["data"]) == 20
@@ -28,7 +28,7 @@ def test_pagination(client):
     assert data["meta"]["has_more"] is True
 
     # Page 2 (limit 20, offset 20)
-    response = client.get("/books/?limit=20&offset=20")
+    response = client.get("/api/v1/books/?limit=20&offset=20")
     assert response.status_code == 200
     data = response.json()
     assert (
@@ -43,7 +43,7 @@ def test_pagination(client):
 def test_search(client):
     # Seed specific books
     client.post(
-        "/books/",
+        "/api/v1/books/",
         json={
             "title": "Unique Python Guide",
             "author": "Guido",
@@ -52,7 +52,7 @@ def test_search(client):
         },
     )
     client.post(
-        "/books/",
+        "/api/v1/books/",
         json={
             "title": "Rust Programming",
             "author": "Steve",
@@ -62,7 +62,7 @@ def test_search(client):
     )
 
     # Search "Python"
-    response = client.get("/books/?q=Python")
+    response = client.get("/api/v1/books/?q=Python")
     assert response.status_code == 200
     data = response.json()
     items = data["data"]
@@ -70,7 +70,7 @@ def test_search(client):
     assert items[0]["title"] == "Unique Python Guide"
 
     # Search "steve" (case insensitive author)
-    response = client.get("/books/?q=steve")
+    response = client.get("/api/v1/books/?q=steve")
     assert response.status_code == 200
     items = response.json()["data"]
     assert len(items) == 1
@@ -80,20 +80,20 @@ def test_search(client):
 def test_sorting(client):
     # A, B, C titles
     client.post(
-        "/books/",
+        "/api/v1/books/",
         json={"title": "Aalpha", "author": "X", "isbn": "S1", "total_copies": 1},
     )
     client.post(
-        "/books/",
+        "/api/v1/books/",
         json={"title": "Ccharlie", "author": "X", "isbn": "S2", "total_copies": 1},
     )
     client.post(
-        "/books/",
+        "/api/v1/books/",
         json={"title": "Bbravo", "author": "X", "isbn": "S3", "total_copies": 1},
     )
 
     # Sort A-Z
-    response = client.get("/books/?sort=title&q=X")  # Filter by author X to avoid noise
+    response = client.get("/api/v1/books/?sort=title&q=X")  # Filter by author X to avoid noise
     assert response.status_code == 200
     items = response.json()["data"]
 
@@ -105,7 +105,7 @@ def test_sorting(client):
     assert filtered_items[2]["title"] == "Ccharlie"
 
     # Sort Z-A
-    response = client.get("/books/?sort=-title&q=X")
+    response = client.get("/api/v1/books/?sort=-title&q=X")
     assert response.status_code == 200
     items = response.json()["data"]
     filtered_items = [b for b in items if b["author"] == "X"]
@@ -115,5 +115,5 @@ def test_sorting(client):
 
 
 def test_invalid_params(client):
-    response = client.get("/books/?sort=invalid_field")
+    response = client.get("/api/v1/books/?sort=invalid_field")
     assert response.status_code == 400

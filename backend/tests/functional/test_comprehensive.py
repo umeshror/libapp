@@ -3,10 +3,11 @@ import threading
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Base
-from app.services.borrow_service import BorrowService
-from app.services.book_service import BookService
-from app.services.member_service import MemberService
-from app.schemas import BookCreate, MemberCreate
+from app.domains.borrows.service import BorrowService
+from app.domains.books.service import BookService
+from app.domains.members.service import MemberService
+from app.domains.books.schemas import BookCreate
+from app.domains.members.schemas import MemberCreate
 from app.core.config import settings
 from app.core.exceptions import (
     InventoryUnavailableError,

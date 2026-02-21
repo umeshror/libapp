@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta, date
 from unittest.mock import MagicMock, patch
-from app.schemas.analytics import (
+from app.domains.analytics.schemas import (
     AnalyticsOverview,
     OverdueBreakdown,
     TopMember,
@@ -11,7 +11,7 @@ from app.schemas.analytics import (
     PopularBook,
     RecentActivity,
 )
-from app.services.analytics_service import AnalyticsService
+from app.domains.analytics.service import AnalyticsService
 
 # Mock Data
 MOCK_OVERVIEW = AnalyticsOverview(
@@ -31,7 +31,7 @@ MOCK_FORECAST = {
 
 @pytest.fixture
 def mock_repo():
-    with patch("app.services.analytics_service.AnalyticsRepository") as MockRepo:
+    with patch("app.domains.analytics.service.AnalyticsRepository") as MockRepo:
         instance = MockRepo.return_value
         instance.get_overview_stats.return_value = MOCK_OVERVIEW
         instance.get_overdue_breakdown.return_value = MOCK_OVERDUE
@@ -50,7 +50,7 @@ def mock_repo():
 
 def test_analytics_summary_structure(client, mock_repo):
     """Test API structure using mocked repository."""
-    response = client.get("/analytics/summary")
+    response = client.get("/api/v1/analytics/summary")
     assert response.status_code == 200
     data = response.json()
 
@@ -67,10 +67,10 @@ def test_analytics_summary_structure(client, mock_repo):
 def test_date_filter_validation(client, mock_repo):
     """Test valid and invalid date ranges."""
     # Invalid: Start > End
-    response = client.get("/analytics/summary?from=2025-01-10&to=2025-01-01")
+    response = client.get("/api/v1/analytics/summary?from=2025-01-10&to=2025-01-01")
     assert response.status_code == 400
     assert "Start date cannot be after end date" in response.json()["detail"]
 
     # Valid (Mock will be called)
-    response = client.get("/analytics/summary?from=2025-01-01&to=2025-01-10")
+    response = client.get("/api/v1/analytics/summary?from=2025-01-01&to=2025-01-10")
     assert response.status_code == 200

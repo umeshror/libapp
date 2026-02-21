@@ -3,7 +3,7 @@ import random
 from datetime import timezone
 from faker import Faker
 from sqlalchemy.orm import Session
-from app.services.borrow_service import BorrowService
+from app.domains.borrows.service import BorrowService
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +25,14 @@ def seed_borrows(
 
     # helper to get random book/member
     # Use Repository directly to bypass Service limit of 100
-    from app.repositories.book_repository import BookRepository
+    from app.domains.books.repository import BookRepository
 
     book_repo = BookRepository(db)
     books_result = book_repo.list(limit=50000)
     all_books = books_result["items"]
 
     # MemberService now enforces limit=100, so use Repo
-    from app.repositories.member_repository import MemberRepository
+    from app.domains.members.repository import MemberRepository
 
     member_repo = MemberRepository(db)
     members_result = member_repo.list(limit=50000)

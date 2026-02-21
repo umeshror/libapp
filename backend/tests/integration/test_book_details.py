@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from uuid import uuid4
 from datetime import datetime
-from app.schemas.book_details import BorrowerInfo, BorrowHistoryItem, BookAnalytics
+from app.domains.books.schemas import BorrowerInfo, BorrowHistoryItem, BookAnalytics
 
 
 def test_get_book_details_full_lifecycle(client):
@@ -47,7 +47,7 @@ def test_get_book_details_full_lifecycle(client):
         return_delay_count=0,
     )
 
-    with patch("app.services.book_service.BookRepository") as MockRepo:
+    with patch("app.domains.books.service.BookRepository") as MockRepo:
         repo_instance = MockRepo.return_value
         repo_instance.get_with_lock.return_value = mock_book
         repo_instance.get_current_borrowers.return_value = [mock_borrower]
@@ -55,7 +55,7 @@ def test_get_book_details_full_lifecycle(client):
         repo_instance.get_analytics.return_value = mock_analytics
 
         # Call API
-        response = client.get(f"/books/{book_id}/details")
+        response = client.get(f"/api/v1/books/{book_id}/details")
         assert response.status_code == 200
         data = response.json()
 
@@ -68,10 +68,10 @@ def test_get_book_details_full_lifecycle(client):
 
 
 def test_get_book_details_not_found(client):
-    with patch("app.services.book_service.BookRepository") as MockRepo:
+    with patch("app.domains.books.service.BookRepository") as MockRepo:
         repo_instance = MockRepo.return_value
         repo_instance.get_with_lock.return_value = None
 
         uuid = uuid4()
-        response = client.get(f"/books/{uuid}/details")
+        response = client.get(f"/api/v1/books/{uuid}/details")
         assert response.status_code == 404

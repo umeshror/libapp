@@ -9,7 +9,7 @@ def test_metrics_collection(client):
     # 2. Perform successful borrow
     # Setup
     b_res = client.post(
-        "/books/",
+        "/api/v1/books/",
         json={
             "title": "Met Book",
             "author": "A",
@@ -22,11 +22,11 @@ def test_metrics_collection(client):
     import uuid
 
     m_res = client.post(
-        "/members/", json={"name": "Met Mem", "email": f"met_{uuid.uuid4()}@e.com"}
+        "/api/v1/members/", json={"name": "Met Mem", "email": f"met_{uuid.uuid4()}@e.com"}
     )
     member_id = m_res.json()["id"]
 
-    client.post(f"/members/{member_id}/borrows/?book_id={book_id}")
+    client.post(f"/api/v1/members/{member_id}/borrows/?book_id={book_id}")
 
     # Verify increment
     res = client.get("/metrics")
@@ -38,20 +38,20 @@ def test_metrics_collection(client):
     import uuid
 
     m2_res = client.post(
-        "/members/", json={"name": "Met Mem 2", "email": f"met2_{uuid.uuid4()}@e.com"}
+        "/api/v1/members/", json={"name": "Met Mem 2", "email": f"met2_{uuid.uuid4()}@e.com"}
     )
     member2_id = m2_res.json()["id"]
 
-    client.post(f"/members/{member2_id}/borrows/?book_id={book_id}")
+    client.post(f"/api/v1/members/{member2_id}/borrows/?book_id={book_id}")
 
     # Verify failure increment
     res = client.get("/metrics")
     assert res.json()["borrow_failure_count"] == initial_failure + 1
 
     # 4. Return book
-    borrow_res = client.get(f"/members/{member_id}/borrows/")
+    borrow_res = client.get(f"/api/v1/members/{member_id}/borrows/")
     borrow_id = borrow_res.json()["data"][0]["id"]
-    client.post(f"/borrows/{borrow_id}/return/")
+    client.post(f"/api/v1/borrows/{borrow_id}/return/")
 
     # Verify decrement
     res = client.get("/metrics")

@@ -1,9 +1,10 @@
 import pytest
 import uuid
-from app.services.borrow_service import BorrowService
-from app.services.book_service import BookService
-from app.services.member_service import MemberService
-from app.schemas import BookCreate, MemberCreate
+from app.domains.borrows.service import BorrowService
+from app.domains.books.service import BookService
+from app.domains.members.service import MemberService
+from app.domains.books.schemas import BookCreate
+from app.domains.members.schemas import MemberCreate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -117,9 +118,9 @@ def test_no_inventory(db_session):
 
 def test_book_service_details_consolidation(db_session):
     book_service = BookService(db_session)
-    from app.repositories.borrow_repository import BorrowRepository
-    from app.repositories.member_repository import MemberRepository
-    from app.schemas import BorrowRecordCreate
+    from app.domains.borrows.repository import BorrowRepository
+    from app.domains.members.repository import MemberRepository
+    from app.domains.borrows.schemas import BorrowRecordCreate
     
     borrow_repo = BorrowRepository(db_session)
     
@@ -156,9 +157,9 @@ def test_book_service_details_consolidation(db_session):
 
 def test_member_service_details_consolidation(db_session):
     member_service = MemberService(db_session)
-    from app.repositories.book_repository import BookRepository
-    from app.repositories.borrow_repository import BorrowRepository
-    from app.schemas import BorrowRecordCreate
+    from app.domains.books.repository import BookRepository
+    from app.domains.borrows.repository import BorrowRepository
+    from app.domains.borrows.schemas import BorrowRecordCreate
     
     book_repo = BookRepository(db_session)
     borrow_repo = BorrowRepository(db_session)

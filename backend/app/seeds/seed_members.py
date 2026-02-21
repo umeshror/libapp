@@ -1,8 +1,8 @@
 import logging
 from faker import Faker
 from sqlalchemy.orm import Session
-from app.services.member_service import MemberService
-from app.schemas import MemberCreate
+from app.domains.members.service import MemberService
+from app.domains.members.schemas import MemberCreate
 
 logger = logging.getLogger(__name__)
 

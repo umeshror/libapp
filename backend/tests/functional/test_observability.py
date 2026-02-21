@@ -2,8 +2,8 @@ import pytest
 import logging
 from unittest.mock import MagicMock, patch
 from sqlalchemy.exc import OperationalError
-from app.services.borrow_service import BorrowService
-from app.schemas import BorrowRecordResponse
+from app.domains.borrows.service import BorrowService
+from app.domains.borrows.schemas import BorrowRecordResponse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
