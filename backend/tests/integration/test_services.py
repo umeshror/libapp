@@ -7,14 +7,11 @@ from app.schemas import BookCreate, MemberCreate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from app.core.config import settings
 
-# Setup in-memory DB for service testing
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+# Setup PostgreSQL test DB
+_test_uri = settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test"
+engine = create_engine(_test_uri)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 

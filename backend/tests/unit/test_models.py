@@ -7,14 +7,9 @@ from app.models.borrow_record import BorrowRecord, BorrowStatus
 from app.models.base import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from app.core.config import settings
 
-# Setup in-memory DB for model testing
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -39,11 +34,6 @@ def test_create_book(db):
 
 
 def test_book_copies_constraint(db):
-    # This might not raise IntegrityError immediately in SQLite without strict enforcement or specific event listeners,
-    # but valid SQLAlchemy CheckConstraints should be emitted.
-    # SQLite often ignores CHECK constraints by default unless enabled,
-    # but SQLAlchemy's metadata.create_all usually includes them.
-    # Let's try to violate it.
     try:
         book = Book(
             title="Bad Book", author="Author", isbn="0987654321", total_copies=-1
@@ -52,13 +42,8 @@ def test_book_copies_constraint(db):
         db.commit()
     except IntegrityError:
         db.rollback()
-        pass
     except Exception:
-        # Some drivers raise different exceptions
         db.rollback()
-        pass
-
-    # Verify strict behavior if possible, but for now just basic creation logic
 
 
 def test_negative_inventory_fails(db):
@@ -68,13 +53,7 @@ def test_negative_inventory_fails(db):
     db.add(book)
     try:
         db.commit()
-        # If SQLite ignores check constraints, this might pass.
-        # In a real Postgres environment, this raises IntegrityError.
-        # We'll assert failure if possible, or skip if SQLite limitation.
-        # For now, let's assume strict constraint might not be active in default sqlite,
-        # but we wrote the code for it.
-        # To force check execution in sqlite often requires 'PRAGMA foreign_keys=ON'
-        # and sometimes 'PRAGMA ignore_check_constraints=OFF' depending on version.
+        # PostgreSQL enforces CHECK constraints — this should raise IntegrityError
         pass
     except IntegrityError:
         db.rollback()

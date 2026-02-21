@@ -11,6 +11,8 @@ from app.schemas.book_details import BorrowerInfo, BorrowHistoryItem, BookAnalyt
 
 
 class BookRepository:
+    """Data access layer for Book entities and their borrow relationships."""
+
     def __init__(self, session: Session):
         self.session = session
 
@@ -75,15 +77,10 @@ class BookRepository:
                 | (Book.isbn.ilike(search_term))
             )
 
-        # Optimization: Get total count before pagination
-        from sqlalchemy import func
-
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.session.execute(count_stmt).scalar() or 0
 
         # Sorting
-        # Security: sort_field is validated by Service, but we double check or use getattr safe
-        # Default to created_at if field not found
         sort_column = getattr(Book, sort_field, Book.created_at)
 
         if sort_order == "desc":
@@ -213,98 +210,3 @@ class BookRepository:
 
         return items, total_count
 
-    def get_analytics(self, book_id: UUID, book: Book) -> BookAnalytics:
-        # 1. Total times borrowed
-        total_stmt = select(func.count(BorrowRecord.id)).where(BorrowRecord.book_id == book_id)
-        total_borrows = self.session.execute(total_stmt).scalar() or 0
-
-        # 2. Avg duration (only for returned)
-        if self.session.bind and self.session.bind.dialect.name == "sqlite":
-            diff_expr = (func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)) * 86400
-        else:
-            diff_expr = func.extract("epoch", BorrowRecord.returned_at - BorrowRecord.borrowed_at)
-
-        avg_stmt = select(func.avg(diff_expr)).where(
-            BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
-        )
-        avg_duration = self.session.execute(avg_stmt).scalar()
-        avg_days = (float(avg_duration) / 86400.0) if avg_duration is not None else 0.0
-
-        # 3. Last borrowed
-        last_stmt = select(func.max(BorrowRecord.borrowed_at)).where(BorrowRecord.book_id == book_id)
-        last_borrowed = self.session.execute(last_stmt).scalar()
-        if isinstance(last_borrowed, str):
-            from dateutil.parser import parse
-            last_borrowed = parse(last_borrowed)
-
-        # 4. Popularity Rank
-        subq = (
-            select(
-                BorrowRecord.book_id, func.count(BorrowRecord.id).label("cnt")
-            )
-            .group_by(BorrowRecord.book_id)
-            .subquery()
-        )
-        rank_stmt = (
-            select(func.count())
-            .select_from(subq)
-            .where(subq.c.cnt > total_borrows)
-        )
-        rank = (self.session.execute(rank_stmt).scalar() or 0) + 1
-
-        # 5. Availability Status
-        if book.available_copies == 0:
-            status = "OUT_OF_STOCK"
-        elif book.available_copies <= 1:
-            status = "LOW_STOCK"
-        else:
-            status = "AVAILABLE"
-
-        # Insights
-        if self.session.bind and self.session.bind.dialect.name == "sqlite":
-            bounds_stmt = (
-                select(
-                    func.min(func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)),
-                    func.max(func.julianday(BorrowRecord.returned_at) - func.julianday(BorrowRecord.borrowed_at)),
-                )
-                .where(
-                    BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
-                )
-            )
-            bounds = self.session.execute(bounds_stmt).first()
-            min_dur = int(bounds[0]) if bounds and bounds[0] is not None else 0
-            max_dur = int(bounds[1]) if bounds and bounds[1] is not None else 0
-        else:
-            bounds_stmt = (
-                select(
-                    func.min(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
-                    func.max(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
-                )
-                .where(
-                    BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
-                )
-            )
-            bounds = self.session.execute(bounds_stmt).first()
-            min_dur = bounds[0].days if bounds and bounds[0] is not None else 0
-            max_dur = bounds[1].days if bounds and bounds[1] is not None else 0
-
-        # Return delays (returned > due_date)
-        delays_stmt = (
-            select(func.count(BorrowRecord.id))
-            .where(
-                BorrowRecord.book_id == book_id,
-                BorrowRecord.returned_at > BorrowRecord.due_date,
-            )
-        )
-        delays = self.session.execute(delays_stmt).scalar() or 0
-
-        return BookAnalytics(
-            total_times_borrowed=total_borrows,
-            average_borrow_duration=round(avg_days, 1),
-            last_borrowed_at=last_borrowed,
-            popularity_rank=rank,
-            availability_status=status,
-            longest_borrow_duration=max_dur,
-            shortest_borrow_duration=min_dur,
-            return_delay_count=delays,
-        )

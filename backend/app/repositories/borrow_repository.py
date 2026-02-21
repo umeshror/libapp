@@ -1,12 +1,17 @@
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from app.models.borrow_record import BorrowRecord, BorrowStatus
+from app.models.member import Member
+from app.models.book import Book
 from app.schemas import BorrowRecordCreate, BorrowRecordResponse
 
 
 class BorrowRepository:
+    """Data access layer for BorrowRecord entities with eager-loaded relationships."""
+
     def __init__(self, session: Session):
         self.session = session
 
@@ -36,6 +41,7 @@ class BorrowRepository:
     def get_active_borrow(
         self, book_id: UUID, member_id: UUID
     ) -> Optional[BorrowRecordResponse]:
+        """Find an active (not returned) borrow for a specific book-member pair."""
         statement = select(BorrowRecord).where(
             and_(
                 BorrowRecord.book_id == book_id,
@@ -68,18 +74,14 @@ class BorrowRepository:
         sort_field: str = "borrowed_at",
         sort_order: str = "desc",
     ) -> dict:
-        from app.models.member import Member
-        from app.models.book import Book
-
+        """List borrow records with filtering by member, status, overdue, and search."""
         stmt = select(BorrowRecord).options(
             joinedload(BorrowRecord.book), joinedload(BorrowRecord.member)
         )
 
-        # Joins for search if needed
         if query:
             stmt = stmt.join(BorrowRecord.member).join(BorrowRecord.book)
 
-        # Filtering
         if member_id:
             stmt = stmt.where(BorrowRecord.member_id == member_id)
 
@@ -87,8 +89,6 @@ class BorrowRepository:
             stmt = stmt.where(BorrowRecord.status == status)
 
         if overdue:
-            from datetime import datetime, timezone
-
             stmt = stmt.where(
                 and_(
                     BorrowRecord.status == BorrowStatus.BORROWED,
@@ -98,18 +98,15 @@ class BorrowRepository:
 
         if query:
             search_term = f"%{query}%"
-            # Search by member name or book title
             stmt = stmt.where(
                 (Member.name.ilike(search_term)) | (Book.title.ilike(search_term))
             )
 
-        # Count
-        from sqlalchemy import func
 
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.session.execute(count_stmt).scalar() or 0
 
-        # Sorting
+
         sort_column = getattr(BorrowRecord, sort_field, BorrowRecord.borrowed_at)
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())

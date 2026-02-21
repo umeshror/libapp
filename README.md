@@ -29,7 +29,7 @@ This repository is structured to reflect how such a system might evolve in a rea
 ![Demo](Library-Management-System.gif)
 
 
-<p align="center">
+<p align="center">̊
   <img src="media/dashboard.png" width="60%">
 </p>
 <p align="center">

@@ -34,13 +34,7 @@ def test_pagination(client):
     assert (
         len(data["data"]) == 5
     )  # Remaining 5 (assuming exactly 25 if DB was empty, or >= 5)
-    # Since we use shared DB in fixture 'module' scope in other tests but 'function' scope here?
-    # Fixture says 'function' scope but uses 'TestingSessionLocal' which binds to memory engine.
-    # Memory engine is shared if check_same_thread=False?
-    # Actually Base.metadata.drop_all is called at end of fixture.
-    # So valid assumption is 25 items + whatever was created in previous calls if fixture teardown failed?
-    # But fixture teardown runs.
-    # Ensure items are exactly what we expect by filtering or just checking > 0.
+    # Fixture teardown ensures clean state between tests
 
     # Check meta has_more
     assert data["meta"]["has_more"] is False

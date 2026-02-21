@@ -14,6 +14,8 @@ from app.api.routers import (
 from app.core.exceptions import LibraryAppError
 from app.api.exception_handlers import library_exception_handler
 from app.core.logging import logger, request_id_ctx
+from app.core.metrics import metrics
+from fastapi.middleware.cors import CORSMiddleware
 
 
 def get_application() -> FastAPI:
@@ -24,8 +26,6 @@ def get_application() -> FastAPI:
     )
 
     # Middleware: CORS
-    from fastapi.middleware.cors import CORSMiddleware
-
     application.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000", "http://localhost:3003"],
@@ -88,8 +88,6 @@ def get_application() -> FastAPI:
 
     @application.get("/metrics")
     def get_metrics():
-        from app.core.metrics import metrics
-
         return metrics.get_stats()
 
     return application

@@ -1,7 +1,8 @@
 from datetime import date, datetime, timezone
-from typing import List, Dict
+from typing import List, Dict, Optional, Tuple, Any
+from uuid import UUID
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, and_, desc, cast, Date, select
+from sqlalchemy import func, case, and_, desc, cast, Date, select, text
 from app.models.book import Book
 from app.models.member import Member
 from app.models.borrow_record import BorrowRecord, BorrowStatus
@@ -14,9 +15,13 @@ from app.schemas.analytics import (
     PopularBook,
     RecentActivity,
 )
+from app.schemas.book_details import BookAnalytics
+from app.schemas.member_details import MemberAnalyticsResponse, ActivityTrendItem
 
 
 class AnalyticsRepository:
+    """Aggregation layer for dashboard, book, and member analytics using PostgreSQL."""
+
     def __init__(self, session: Session):
         self.session = session
 
@@ -237,3 +242,168 @@ class AnalyticsRepository:
             )
             for r in results
         ]
+
+    def get_book_analytics(self, book_id: UUID, book: Book) -> BookAnalytics:
+        """
+        Calculates analytics for a specific book.
+        """
+        # 1. Total times borrowed
+        total_stmt = select(func.count(BorrowRecord.id)).where(BorrowRecord.book_id == book_id)
+        total_borrows = self.session.execute(total_stmt).scalar() or 0
+
+        # 2. Avg duration (only for returned)
+        diff_expr = func.extract("epoch", BorrowRecord.returned_at - BorrowRecord.borrowed_at)
+
+        avg_stmt = select(func.avg(diff_expr)).where(
+            BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
+        )
+        avg_duration = self.session.execute(avg_stmt).scalar()
+        avg_days = (float(avg_duration) / 86400.0) if avg_duration is not None else 0.0
+
+        # 3. Last borrowed
+        last_stmt = select(func.max(BorrowRecord.borrowed_at)).where(BorrowRecord.book_id == book_id)
+        last_borrowed = self.session.execute(last_stmt).scalar()
+
+        # 4. Popularity Rank
+        subq = (
+            select(
+                BorrowRecord.book_id, func.count(BorrowRecord.id).label("cnt")
+            )
+            .group_by(BorrowRecord.book_id)
+            .subquery()
+        )
+        rank_stmt = (
+            select(func.count())
+            .select_from(subq)
+            .where(subq.c.cnt > total_borrows)
+        )
+        rank = (self.session.execute(rank_stmt).scalar() or 0) + 1
+
+        # 5. Availability Status
+        if book.available_copies == 0:
+            status = "OUT_OF_STOCK"
+        elif book.available_copies <= 1:
+            status = "LOW_STOCK"
+        else:
+            status = "AVAILABLE"
+
+        # Insights
+        bounds_stmt = (
+            select(
+                func.min(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
+                func.max(BorrowRecord.returned_at - BorrowRecord.borrowed_at),
+            )
+            .where(
+                BorrowRecord.book_id == book_id, BorrowRecord.returned_at.is_not(None)
+            )
+        )
+        bounds = self.session.execute(bounds_stmt).first()
+        min_dur = bounds[0].days if bounds and bounds[0] is not None else 0
+        max_dur = bounds[1].days if bounds and bounds[1] is not None else 0
+
+        # Return delays (returned > due_date)
+        delays_stmt = (
+            select(func.count(BorrowRecord.id))
+            .where(
+                BorrowRecord.book_id == book_id,
+                BorrowRecord.returned_at > BorrowRecord.due_date,
+            )
+        )
+        delays = self.session.execute(delays_stmt).scalar() or 0
+
+        return BookAnalytics(
+            total_times_borrowed=total_borrows,
+            average_borrow_duration=round(avg_days, 1),
+            last_borrowed_at=last_borrowed,
+            popularity_rank=rank,
+            availability_status=status,
+            longest_borrow_duration=max_dur,
+            shortest_borrow_duration=min_dur,
+            return_delay_count=delays,
+        )
+
+    def get_member_analytics(self, member_id: UUID) -> MemberAnalyticsResponse:
+        """
+        Calculates detailed analytics for a member.
+        """
+        now = datetime.now(timezone.utc)
+        diff_expr = func.extract("day", func.coalesce(BorrowRecord.returned_at, now) - BorrowRecord.borrowed_at)
+        
+        stats_stmt = select(
+            func.count(BorrowRecord.id).label("total_count"),
+            func.count().filter(BorrowRecord.status == BorrowStatus.BORROWED).label("active_count"),
+            func.avg(diff_expr).label("avg_duration"),
+            func.max(diff_expr).label("max_duration"),
+            func.min(diff_expr).label("min_duration"),
+            func.count().filter(
+                case(
+                    (BorrowRecord.returned_at.is_not(None), BorrowRecord.returned_at > BorrowRecord.due_date),
+                    (BorrowRecord.returned_at.is_(None), BorrowRecord.due_date < now),
+                    else_=False
+                )
+            ).label("overdue_count"),
+        ).where(BorrowRecord.member_id == member_id)
+
+        stats = self.session.execute(stats_stmt).first()
+
+        fav_author = self.session.execute(
+            select(Book.author)
+            .join(BorrowRecord, BorrowRecord.book_id == Book.id)
+            .where(BorrowRecord.member_id == member_id)
+            .group_by(Book.author)
+            .order_by(desc(func.count(BorrowRecord.id)))
+            .limit(1)
+        ).scalar()
+
+        month_fmt = func.to_char(BorrowRecord.borrowed_at, "YYYY-MM").label("month")
+
+        trend_query = (
+            select(month_fmt, func.count(BorrowRecord.id).label("count"))
+            .where(BorrowRecord.member_id == member_id)
+            .group_by(text("month"))
+            .order_by(text("month"))
+            .limit(6)
+        )
+
+        trends = self.session.execute(trend_query).all()
+
+        first_borrow = self.session.execute(
+            select(func.min(BorrowRecord.borrowed_at)).where(
+                BorrowRecord.member_id == member_id
+            )
+        ).scalar()
+
+        freq = 0.0
+        if first_borrow:
+            if first_borrow.tzinfo is None:
+                first_borrow = first_borrow.replace(tzinfo=timezone.utc)
+            duration = datetime.now(timezone.utc) - first_borrow
+            months = max(1, duration.days / 30)
+            freq = stats.total_count / months if stats and stats.total_count else 0.0
+
+        overdue_rate = 0.0
+        if stats and stats.total_count > 0:
+            overdue_rate = (stats.overdue_count / stats.total_count * 100)
+
+        risk_level = self.calculate_risk_level(overdue_rate)
+
+        return MemberAnalyticsResponse(
+            total_books_borrowed=stats.total_count if stats is not None else 0,
+            active_books=stats.active_count if stats is not None else 0,
+            average_borrow_duration=round(float(stats.avg_duration or 0), 1) if stats is not None else 0.0,
+            longest_borrow_duration=int(stats.max_duration or 0) if stats is not None and stats.max_duration else None,
+            shortest_borrow_duration=int(stats.min_duration or 0) if stats is not None and stats.min_duration else None,
+            overdue_count=stats.overdue_count if stats is not None else 0,
+            overdue_rate_percent=round(overdue_rate, 1),
+            favorite_author=fav_author,
+            borrow_frequency_per_month=round(freq, 1),
+            risk_level=risk_level,
+            activity_trend=[ActivityTrendItem(month=t.month, count=t.count) for t in trends],
+        )
+
+    def calculate_risk_level(self, overdue_rate: float) -> str:
+        if overdue_rate > 30:
+            return "HIGH"
+        if overdue_rate > 10:
+            return "MEDIUM"
+        return "LOW"

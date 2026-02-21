@@ -105,7 +105,7 @@ export default function MemberDetailPage() {
             setHistory(historyData.data)
             setTotal(historyData.meta.total)
         } catch (err: unknown) {
-            console.error('Failed to load history', err)
+            // Error is handled by the UI state
         }
     }, [memberId, limit, status, sort, order])
 

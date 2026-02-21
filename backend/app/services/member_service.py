@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.repositories.member_repository import MemberRepository
+from app.repositories.analytics_repository import AnalyticsRepository
 from app.schemas import MemberCreate, MemberResponse, PaginatedResponse, PaginationMeta
 from app.schemas.member_details import (
     MemberCoreDetails,
@@ -15,9 +16,12 @@ from app.schemas.member_details import (
 
 
 class MemberService:
+    """Orchestrates member operations, profile details, and analytics."""
+
     def __init__(self, session: Session):
         self.session = session
         self.repo = MemberRepository(session)
+        self.analytics_repo = AnalyticsRepository(session)
 
     def create_member(self, member_in: MemberCreate) -> MemberResponse:
         return self.repo.create(member_in)
@@ -70,14 +74,9 @@ class MemberService:
                 has_more=(offset + limit) < total,
             ),
         )
-    def _calculate_risk_level(self, overdue_rate: float) -> str:
-        if overdue_rate < 5.0:
-            return "LOW"
-        elif overdue_rate <= 15.0:
-            return "MEDIUM"
-        return "HIGH"
 
     def get_member_details(self, member_id: UUID) -> MemberCoreDetails:
+        """Build a member profile with membership duration, active borrows, and risk level."""
         member = self.repo.get(member_id)
         if not member:
             raise HTTPException(status_code=404, detail="Member not found")
@@ -87,7 +86,7 @@ class MemberService:
         # Calculate membership duration
         duration = datetime.now(timezone.utc).date() - member.created_at.date()
 
-        risk_level = self._calculate_risk_level(stats["overdue_rate_percent"])
+        risk_level = self.analytics_repo.calculate_risk_level(stats["overdue_rate_percent"])
 
         return MemberCoreDetails(
             member=member,
@@ -109,6 +108,7 @@ class MemberService:
         sort: str,
         order: str,
     ) -> MemberBorrowHistoryResponse:
+        """Fetch paginated borrow history with overdue detection per record."""
         results, total = self.repo.get_borrow_history(
             member_id, limit, offset, status, sort, order
         )
@@ -159,11 +159,4 @@ class MemberService:
         )
 
     def get_member_analytics(self, member_id: UUID) -> MemberAnalyticsResponse:
-        analytics = self.repo.get_detailed_analytics(member_id)
-
-        # Add risk level
-        analytics["risk_level"] = self._calculate_risk_level(
-            analytics["overdue_rate_percent"]
-        )
-
-        return MemberAnalyticsResponse(**analytics)
+        return self.analytics_repo.get_member_analytics(member_id)

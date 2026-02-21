@@ -170,22 +170,8 @@ def test_borrow_edge_cases_api(client):
     client.post(f"/members/{member_id}/borrows/?book_id={book_id}")
     # Borrow second copy (fail)
     response = client.post(f"/members/{member_id}/borrows/?book_id={book_id}")
-    # Either "Member already has active borrow" or "No copies available" depending on check order.
-    # Logic in service:
-    # 1. Limit (5)
-    # 2. Member exists
-    # 3. Existing borrow check
-    # 4. Book exists
-    # 5. Inventory check
-    # Since same member borrowing same book -> "Member already has an active borrow" (ValueError -> 400 or 409?)
-    # ValueError is mapped to 400 by default but my custom exceptions are mapped better.
-    # The service raises specifically `ValueError` for "Member already has active borrow" in my original implementation,
-    # OR did I change it?
-    # Let's check `BorrowService.borrow_book`:
-    # `if existing_borrow: raise ValueError(...)` -> In `exception_handlers.py`, generic errors are 400.
-    # Let's verify this behavior. 400 is acceptable for "Bad Request" (violating business rule of uniqueness).
-    # But usually "Inventory" is 409.
-    # To test "Inventory Unavailable", I need a different member.
+    # Same member borrowing same book again triggers ActiveBorrowExistsError (409).
+    # To test InventoryUnavailableError, use a different member.
 
     member2_res = client.post(
         "/members/", json={"name": "Edge Mem 2", "email": f"edge2_{uuid.uuid4()}@e.com"}

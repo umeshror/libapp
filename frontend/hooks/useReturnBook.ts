@@ -3,12 +3,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { returnBook } from '@/lib/api';
+import { BorrowRecord } from '@/types';
 
 interface UseReturnBookOptions {
-    onSuccess?: (data: any) => void;
+    onSuccess?: (data: BorrowRecord) => void;
     onError?: (error: Error) => void;
 }
 
+/** Mutation hook for returning a book. Invalidates borrows/books/members queries on success. */
 export function useReturnBook(options: UseReturnBookOptions = {}) {
     const queryClient = useQueryClient();
 

@@ -7,14 +7,9 @@ from app.schemas import BookCreate, BookUpdate, MemberCreate, BorrowRecordCreate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from app.core.config import settings
 
-# Setup in-memory DB for repo testing
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -94,8 +89,7 @@ def test_book_locking(db_session):
     book_in = BookCreate(title="Lock Book", author="Lock Author", isbn="locked123")
     created_book = repo.create(book_in)
 
-    # Test that get_with_lock returns the book (cannot easily test actual locking in SQLite)
-    # But we verify the method call and return value
+    # Verify get_with_lock returns the expected book
     locked_book = repo.get_with_lock(created_book.id)
     assert locked_book is not None
     assert locked_book.id == created_book.id

@@ -2,12 +2,12 @@ import pytest
 import threading
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.models import Base
 from app.services.borrow_service import BorrowService
 from app.services.book_service import BookService
 from app.services.member_service import MemberService
 from app.schemas import BookCreate, MemberCreate
+from app.core.config import settings
 from app.core.exceptions import (
     InventoryUnavailableError,
     BorrowLimitExceededError,
@@ -15,16 +15,8 @@ from app.core.exceptions import (
     ActiveBorrowExistsError,
 )
 
-# -----------------------------------------------------------------------------
-# Test Database Setup (Transactional)
-# -----------------------------------------------------------------------------
-# Using SQLite in-memory for fast, isolated execution.
-# `check_same_thread=False` needed for concurrency tests.
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+_test_uri = settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test"
+engine = create_engine(_test_uri)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -135,16 +127,8 @@ def test_concurrent_borrow_race_condition():
     the LAST available copy of a book.
     Expected: Exactly one thread succeeds, the other fails.
     """
-    import tempfile
-    import os
-
-    # Use a file-backed SQLite database for this specific test to avoid StaticPool segfaults
-    fd, path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
-
-    concurrent_engine = create_engine(
-        f"sqlite:///{path}", connect_args={"check_same_thread": False}
-    )
+    # Use separate sessions for concurrency simulation
+    concurrent_engine = create_engine(_test_uri)
     ConcurrentSessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=concurrent_engine
     )
@@ -197,8 +181,6 @@ def test_concurrent_borrow_race_condition():
 
     # Cleanup
     Base.metadata.drop_all(bind=concurrent_engine)
-    if os.path.exists(path):
-        os.remove(path)
 
     assert results.count("success") == 1, (
         f"Expected 1 success, got {results.count('success')} | Full: {results}"

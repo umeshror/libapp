@@ -8,7 +8,7 @@ from app.schemas import BookCreate, MemberCreate, BookUpdate
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from app.core.config import settings
 from app.core.exceptions import (
     MemberNotFoundError,
     BookNotFoundError,
@@ -16,12 +16,7 @@ from app.core.exceptions import (
     AlreadyReturnedError,
 )
 
-# Setup in-memory DB
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -80,15 +75,8 @@ def test_borrow_service_edge_cases(db_session):
     with pytest.raises(AlreadyReturnedError):
         borrow_service.return_book(borrow.id)
 
-    # 6. Return where book missing (Corrupted state)
-    # Create a borrow record manually without book (or delete book)
-    # Since we can't easily delete with FK constraints without cascade on book delete
-    # Let's try to mock or force it if possible.
-    # Actually, FK constraint 'ON DELETE CASCADE' means if we delete book, borrow record is deleted.
-    # So we can't easily simulate "Borrow record exists but book does not" in DB with strict constraints.
-    # However, for 100% coverage of the line `if not book: raise BookNotFoundError`, we might need to mock.
-    # We will skip this one for integration test and rely on Mock if needed,
-    # or accept 99% coverage if strict DB prevents this state.
+    # 6. Missing book during return cannot be tested via DB due to FK CASCADE constraints.
+    # This branch requires a mock-based unit test for full coverage.
 
 
 def test_book_repository_edge_cases(db_session):

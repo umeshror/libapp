@@ -7,7 +7,8 @@ from app.repositories.book_repository import BookRepository
 from app.repositories.borrow_repository import BorrowRepository
 from app.repositories.member_repository import MemberRepository
 from app.schemas import BorrowRecordResponse, PaginatedResponse, PaginationMeta
-from app.models.borrow_record import BorrowStatus
+from app.models.borrow_record import BorrowRecord, BorrowStatus
+from app.core.config import settings
 from app.core.exceptions import (
     InventoryUnavailableError,
     BorrowLimitExceededError,
@@ -22,6 +23,8 @@ from app.core.decorators import db_retry, measure_borrow_metrics
 
 
 class BorrowService:
+    """Handles borrow/return lifecycle with inventory locking and business rule enforcement."""
+
     def __init__(self, session: Session):
         self.session = session
         self.book_repo = BookRepository(session)
@@ -57,8 +60,6 @@ class BorrowService:
             status=BorrowStatus.BORROWED,
             limit=1,  # We just need the total count from metadata
         )
-        from app.core.config import settings
-
         active_count = active_borrows_result["total"]
 
         if active_count >= settings.MAX_ACTIVE_BORROWS:
@@ -91,12 +92,8 @@ class BorrowService:
         book.available_copies -= 1  # type: ignore
 
         # Create borrow record
-        from app.models.borrow_record import BorrowRecord
-
         if not borrowed_at:
             borrowed_at = datetime.now(timezone.utc)
-
-        from app.core.config import settings
 
         if not due_date:
             due_date = borrowed_at + timedelta(

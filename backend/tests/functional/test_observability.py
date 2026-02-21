@@ -7,15 +7,10 @@ from app.schemas import BorrowRecordResponse
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.models import Base
+from app.core.config import settings
 
-# Setup in-memory DB
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
@@ -45,16 +40,7 @@ def test_correlation_id_middleware(client, caplog):
     custom_id = "test-cor-id-123"
     client.get("/health", headers={"X-Request-ID": custom_id})
 
-    # Check logs for the ID
-    # Note: JSON formatting might make direct string matching tricky if captured raw,
-    # but caplog captures the message object. Our formatter runs on output.
-    # We can check the ContextVar or just checks if the middleware set the header in response.
-    # The simplest proxy for "logs contain ID" in this env is checking the response header
-    # and relying on the middleware logic I wrote to inject it.
-
-    # However, to be sure about the LOGS, we can check if the formatter does its job.
-    # But pytest caplog captures before formatting usually.
-    # Let's rely on response header for E2E validation.
+    # Verify correlation ID is echoed back in response header
 
     res = client.get("/health", headers={"X-Request-ID": custom_id})
     assert res.headers["X-Request-ID"] == custom_id
@@ -72,14 +58,7 @@ def test_deadlock_retry_mechanism(db_session):
     """
     borrow_service = BorrowService(db_session)
 
-    # Mock book_repo.get_with_lock to raise OperationalError first 2 times
-    original_method = borrow_service.book_repo.get_with_lock
-
-    # Create a side effect: 2 Errors, then Success (None, because we don't have real data here,
-    # but we want to see if it RETRIES. If it returns None, it raises BookNotFound,
-    # which is fine, it means it passed the DB error).
-
-    # Actually, let's mock it to return a dummy book after retries to avoid BookNotFound
+    # Side effect: 2 OperationalErrors, then a mock book to verify retry behavior
     mock_book = MagicMock()
     mock_book.available_copies = 1
     mock_book.id = 1

@@ -1,6 +1,18 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
-import { ListParams, PaginatedResponse, Book, Member, BorrowRecord } from '../types';
+import {
+    ListParams,
+    PaginatedResponse,
+    Book,
+    Member,
+    BorrowRecord,
+    AnalyticsSummaryResponse,
+    BookDetailResponse,
+    MemberCoreDetails,
+    MemberBorrowHistoryResponse,
+    MemberAnalyticsResponse
+} from '../types';
 
+/** Fetch wrapper with JSON headers and error extraction from API responses. */
 export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     const res = await fetch(`${API_URL}${endpoint}`, {
         ...options,
@@ -17,6 +29,7 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     return res.json();
 }
 
+/** Convert ListParams to URLSearchParams, omitting undefined values. */
 function validParams(params: ListParams): URLSearchParams {
     const searchParams = new URLSearchParams();
     if (params.limit !== undefined) searchParams.set('limit', params.limit.toString());
@@ -46,14 +59,9 @@ export async function getMemberBorrows(memberId: string, params: ListParams): Pr
     return fetchAPI(`/members/${memberId}/borrows?${searchParams.toString()}`);
 }
 
-import {
-    AnalyticsSummaryResponse,
-    BookDetailResponse,
-    MemberCoreDetails,
-    MemberBorrowHistoryResponse,
-    MemberAnalyticsResponse
-} from '../types';
 
+
+/** Fetch dashboard analytics with optional date range filter. */
 export async function getAnalyticsSummary(from?: string, to?: string): Promise<AnalyticsSummaryResponse> {
     const searchParams = new URLSearchParams();
     if (from) searchParams.set('from', from);
@@ -61,6 +69,7 @@ export async function getAnalyticsSummary(from?: string, to?: string): Promise<A
     return fetchAPI(`/analytics/summary?${searchParams.toString()}`);
 }
 
+/** Fetch book details including borrowers, history, and analytics. */
 export async function getBookDetails(
     id: string,
     historyLimit: number = 10,

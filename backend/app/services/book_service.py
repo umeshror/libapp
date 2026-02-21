@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.repositories.book_repository import BookRepository
+from app.repositories.analytics_repository import AnalyticsRepository
 from app.schemas import (
     BookCreate,
     BookUpdate,
@@ -14,9 +15,12 @@ from app.schemas.book_details import BookDetailResponse, BorrowHistoryResponse
 
 
 class BookService:
+    """Orchestrates book operations with input validation and analytics aggregation."""
+
     def __init__(self, session: Session):
         self.session = session
         self.repo = BookRepository(session)
+        self.analytics_repo = AnalyticsRepository(session)
 
     def create_book(self, book_in: BookCreate) -> BookResponse:
         return self.repo.create(book_in)
@@ -34,6 +38,7 @@ class BookService:
         query: Optional[str] = None,
         sort: str = "-created_at",
     ) -> PaginatedResponse[BookResponse]:
+        """List books with validated pagination, search, and sort parameters."""
         # Validate limit
         if limit > 100:
             raise ValueError("Limit cannot exceed 100")
@@ -82,6 +87,7 @@ class BookService:
     def get_book_details(
         self, book_id: UUID, history_limit: int = 10, history_offset: int = 0
     ) -> BookDetailResponse:
+        """Aggregate book info, active borrowers, paginated history, and analytics."""
         # 1. Fetch Core Book Details
         book = self.repo.get_with_lock(book_id)
         if not book:
@@ -106,7 +112,7 @@ class BookService:
         )
 
         # 4. Fetch Analytics
-        analytics = self.repo.get_analytics(book_id, book)
+        analytics = self.analytics_repo.get_book_analytics(book_id, book)
 
         return BookDetailResponse(
             book=BookResponse.model_validate(book),

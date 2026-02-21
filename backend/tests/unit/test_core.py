@@ -7,4 +7,4 @@ def test_app_starts():
 def test_settings_loaded():
     from app.core.config import settings
 
-    assert settings.SQLALCHEMY_DATABASE_URI is not None
+    assert settings.DATABASE_URL is not None

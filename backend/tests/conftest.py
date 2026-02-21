@@ -4,19 +4,22 @@ from app.main import app
 from app.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from app.api.deps import get_db
 
 
+from app.core.config import settings
+
 @pytest.fixture(scope="module")
 def shared_engine():
-    """Create a single engine for the module to ensure shared in-memory DB."""
-    SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-    engine = create_engine(
-        SQLALCHEMY_DATABASE_URL,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
+    """Create a single engine for the module to ensure shared DB."""
+    # Build test URI by replacing the DB name
+    base_uri = settings.DATABASE_URL
+    test_uri = base_uri.rsplit("/", 1)[0] + "/library_test"
+    
+    engine = create_engine(test_uri)
+    
+    # Ensure clean state for the test module
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     return engine
 
