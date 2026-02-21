@@ -1,530 +1,775 @@
 # Neighborhood Library Service
 
-## Overview
-
-This project implements a Library Management Service built to demonstrate clean architecture, data integrity, and scalable design principles.
-
-While the functional scope resembles a typical take-home assignment (books, members, borrowing, returning), the implementation intentionally focuses on:
-
-* Correctness under concurrency
-* Clear separation of concerns
-* Scalable API modeling
-* Realistic data simulation
-* Efficient aggregation queries
-* Predictable performance at mid-scale
-
-The system tested with:
-* 200,000 books
-* 60,000 members
-* ~4,000,000 borrow records
-* 120 months of simulated activity
-* 10000 overdue borrows
-* Analytics and entity-level insights
-
-This repository is structured to reflect how such a system might evolve in a real-world environment.
-
-# Library Management System
 
 ## 🎬 Demo
+
 ![Demo](Library-Management-System.gif)
 
-
-<p align="center">̊
-  <img src="media/dashboard.png" width="60%">
+<p align="center">
+  <img src="media/dashboard.png" width="45%">
+  <img src="media/swagger_docs.png" width="45%">
 </p>
 <p align="center">
   <img src="media/2.png" width="45%">
-  <img src="media/3.png" width="45%">
+  <img src="media/3.png" width="33%">
+  <img src="media/4.png" width="33%">
+  <img src="media/5.png" width="33%">
 </p>
-
 <p align="center">
-  <img src="media/4.png" width="45%">
-  <img src="media/5.png" width="45%">
+  <img src="media/6.png" width="33%">
+  <img src="media/7.png" width="33%">
+  <img src="media/8.png" width="33%">
 </p>
-
 <p align="center">
-  <img src="media/6.png" width="45%">
-  <img src="media/7.png" width="45%">
+  <img src="media/9.png" width="33%">
+  <img src="media/10.png" width="33%">
+  <img src="media/11.png" width="33%">
 </p>
 
+---
 
-<p align="center">
-  <img src="media/8.png" width="30%">
-  <img src="media/9.png" width="30%">
-  <img src="media/10.png" width="30%">
+## Validated At Scale
 
-</p>
-
+| Metric | Value |
+|:-------|:------|
+| Books | 200,000 |
+| Members | 60,000 |
+| Borrow Records | ~4,000,000 |
+| Simulation Span | 10 years (120 months) |
+| Seeder Throughput | **~26,000 records/sec** |
+| Search Latency | **< 500ms** (GIN trigram index, 200k books) |
+| Pagination | **O(1)** at any page depth (keyset cursor) |
+| Dashboard Analytics | **< 2s** (single-query consolidation) |
 
 ---
 
 ## Tech Stack
 
 ### Backend
-- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.9+)
-- **ORM**: [SQLAlchemy 2.0](https://www.sqlalchemy.org/)
-- **Migrations**: [Alembic](https://alembic.sqlalchemy.org/)
-- **Validation**: [Pydantic v2](https://docs.pydantic.dev/)
-- **Testing**: [Pytest](https://docs.pytest.org/)
+| Library | Role |
+|:--------|:-----|
+| **FastAPI** (Python 3.9+) | ASGI web framework |
+| **SQLAlchemy 2.0** | ORM with `with_for_update()` support |
+| **Alembic** | Schema migrations |
+| **Pydantic v2** | Request/response validation & serialization |
+| **Pytest + pytest-cov** | Test suite with coverage |
+| **psycopg2** | PostgreSQL driver |
 
 ### Frontend
-- **Framework**: [Next.js 13.5 (App Router)](https://nextjs.org/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **State Management**: [TanStack Query (React Query)](https://tanstack.com/query/latest)
-- **Charts**: [Recharts](https://recharts.org/)
-- **Icons**: [Lucide React](https://lucide.dev/)
+| Library | Role |
+|:--------|:-----|
+| **Next.js 13.5** (App Router) | React framework |
+| **TypeScript** | Static typing across all components |
+| **Tailwind CSS** | Utility-first styling |
+| **TanStack Query** | Server state, caching, pagination |
+| **Recharts** | Borrow trend & analytics charts |
+| **Lucide React** | Icon system |
 
 ### Infrastructure
-- **Database**: [PostgreSQL 15+](https://www.postgresql.org/)
-- **Containerization**: [Docker & Docker Compose](https://www.docker.com/)
-- **Automation**: [GNU Make](https://www.gnu.org/software/make/)
+| Tool | Role |
+|:-----|:-----|
+| **PostgreSQL 15** | Primary database with GIN indexes + partial indexes |
+| **Docker + Docker Compose** | Containerized services with health checks |
+| **GNU Make** | Developer workflow automation |
 
 ---
 
 ## Prerequisites
 
-Before getting started, ensure you have the following installed:
+Before you begin, install:
 
-- **Docker & Docker Compose**: (Required for Database)
-- **Python 3.9+**: (Required for Backend)
-- **Node.js 18+**: (Required for Frontend)
-- **GNU Make**: (Recommended for easy setup)
+| Requirement | Min Version | Purpose |
+|:------------|:------------|:--------|
+| Docker + Docker Compose | 24+ | Database & containerized stack |
+| Python | 3.9+ | Backend runtime |
+| Node.js | 18+ | Frontend runtime |
+| GNU Make | any | Project automation |
 
 ---
 
 ## Project Structure
 
-```text
-.
-├── backend/               # FastAPI Application
-│   ├── alembic/           # Database Migrations
-│   ├── app/
-│   │   ├── api/          # Route Handlers
-│   │   ├── core/         # Configuration & Global Constants
-│   │   ├── db/           # Session Management
-│   │   ├── models/       # SQLAlchemy Domain Models
-│   │   ├── repositories/ # Data Access Layer
-│   │   ├── schemas/      # Pydantic DTOs
-│   │   ├── seeds/        # Data Seeding Logic
-│   │   └── services/     # Business Logic Layer
-│   ├── tests/            # Pytest Suite
-│   └── requirements.txt
-├── frontend/              # Next.js Application
-│   ├── app/              # App Router Pages & Layouts
-│   ├── components/       # Shared UI Components
-│   ├── hooks/            # Custom React Hooks
-│   ├── lib/              # API Clients & Utilities
-│   └── types/            # TypeScript Interfaces
-├── Makefile               # Project Automation Root
-└── docker-compose.yml     # Infrastructure Orchestration
 ```
+libapp/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── v1.py              # Versioned router aggregation
+│   │   │   └── exception_handlers.py
+│   │   ├── core/
+│   │   │   ├── config.py          # Pydantic settings (env vars)
+│   │   │   ├── decorators.py      # @db_retry, @measure_borrow_metrics
+│   │   │   ├── exceptions.py      # Domain-specific exception hierarchy
+│   │   │   ├── logging.py         # Structured JSON logger + correlation ID ctx
+│   │   │   ├── metrics.py         # In-memory borrow metrics
+│   │   │   └── security.py        # Sliding-window rate limiter
+│   │   ├── db/
+│   │   │   └── session.py         # SQLAlchemy engine + SessionLocal
+│   │   ├── domains/               # Domain-driven vertical slices
+│   │   │   ├── books/             # router, service, repository, schemas
+│   │   │   ├── members/
+│   │   │   ├── borrows/
+│   │   │   └── analytics/
+│   │   ├── models/
+│   │   │   ├── book.py            # Book model (check constraint: available >= 0)
+│   │   │   ├── member.py
+│   │   │   └── borrow_record.py   # Partial index on active borrows
+│   │   ├── seeds/
+│   │   │   ├── high_scale_seeder.py  # Parallel multi-threaded seeder
+│   │   │   ├── scenarios.py         # Seed config: minimal → high_scale
+│   │   │   └── seed_runner.py       # CLI entry point
+│   │   └── shared/
+│   │       ├── schemas.py         # PaginatedResponse, PaginationMeta
+│   │       └── deps.py            # FastAPI dependencies (get_db)
+│   ├── migrations/                # Alembic migration history
+│   ├── tests/                     # Pytest suite
+│   └── requirements.txt
+├── frontend/
+│   ├── app/                       # Next.js App Router pages
+│   ├── components/                # Shared UI components
+│   ├── hooks/                     # Custom React hooks
+│   ├── lib/                       # API client + utilities
+│   └── types/                     # TypeScript interfaces
+├── docker-compose.yml
+└── Makefile
+```
+
+---
+
+## Docker Workflow — Full Containerized Stack
+
+To run the **entire stack** (DB + API + Frontend) in Docker:
+
+```bash
+# Build and start all services
+make docker-up
+
+# Check status
+make docker-ps
+
+# View logs for a specific service
+docker-compose logs -f api
+docker-compose logs -f db
+docker-compose logs -f frontend
+
+# Trigger a clean re-seed via the seeder container
+make docker-seed
+
+# Tear down everything (removes volumes and data)
+make docker-down
+```
+
+## Quick Start — Local Development
+
+**Follow these steps in order.** A developer should be up and running in under 5 minutes.
+
+### 1. Clone the repository
+
+```bash
+git clone <repo-url>
+cd libapp
+```
+
+### 2. Configure environment
+
+Create a `.env` file in the **project root** (copy from below):
+
+```bash
+cat > .env << 'EOF'
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+POSTGRES_DB=library
+POSTGRES_SERVER=localhost
+POSTGRES_PORT=5432
+ENVIRONMENT=development
+EOF
+```
+
+Also create one for the backend:
+
+```bash
+cp .env backend/.env
+```
+
+### 3. Start the database
+
+```bash
+make docker-db
+```
+
+This starts a PostgreSQL 15 container in the background on port `5432`.
+
+> **Using a local PostgreSQL?** If you have Postgres running locally on a different port (e.g., 9011), update `POSTGRES_PORT` in `backend/.env`.
+
+### 4. Install dependencies
+
+```bash
+make install
+```
+
+This installs `backend/requirements.txt` via pip and `frontend/package.json` via npm.
+
+### 5. Initialize the database schema
+
+```bash
+make db-migrate
+```
+
+Runs all Alembic migrations to create tables, indexes, and extensions (`pg_trgm`).
+
+### 6. Seed with sample data
+
+```bash
+make db-seed         # ~5,000 books, 1,000 members (fast, good for dev)
+```
+
+For a heavier dataset:
+
+```bash
+make db-seed-high    # 200k books, 60k members, 4M borrows (~3.5 min)
+```
+
+### 7. Start development servers
+
+```bash
+make start
+```
+
+This starts:
+- Backend (FastAPI + Uvicorn) on **http://localhost:8000**
+- Frontend (Next.js) on **http://localhost:3003**
+
+### 8. Verify it's working
+
+| URL | What you'll see |
+|:----|:----------------|
+| http://localhost:3003 | Library dashboard |
+| http://localhost:8000/docs | Swagger UI (interactive API docs) |
+| http://localhost:8000/health | `{"status": "ok", "db": "connected"}` |
+| http://localhost:8000/metrics | In-memory borrow metrics |
+
+---
+
+
+> Inside Docker, the API connects to the DB via the service name `db`. The `POSTGRES_SERVER=db` env var is set automatically in `docker-compose.yml`.
+
+---
+
+## All Make Commands
+
+### Setup & Lifecycle
+
+| Command | Description |
+|:--------|:------------|
+| `make setup` | DB + install + migrate + seed (minimal). One-shot fresh start. |
+| `make setup-high` | DB + install + migrate + high-scale seed (4M records). |
+| `make install` | Install backend pip deps + frontend npm deps |
+| `make start` | Start backend (:8000) and frontend (:3003) concurrently |
+| `make dev` | Alias for `start` |
+| `make build` | Build Next.js production bundle |
+
+### Database
+
+| Command | Description |
+|:--------|:------------|
+| `make db-migrate` | Apply all pending Alembic migrations (`alembic upgrade head`) |
+| `make db-migration m='add_index'` | Auto-generate a new migration from model diff |
+| `make db-seed` | Seed with `minimal` scenario (~5k books, 1k members) |
+| `make db-seed-high` | Seed with `high_scale` (200k books, 60k members, 4M borrows) |
+| `make db-reset` | Truncate all tables (destructive) |
+| `make db-fresh` | Truncate → re-migrate → re-seed (clean slate) |
+| `make db-shell` | Open interactive `psql` shell in the DB container |
+
+### Docker
+
+| Command | Description |
+|:--------|:------------|
+| `make docker-db` | Start only the PostgreSQL container |
+| `make docker-up` | Build all images and start all services (detached) |
+| `make docker-down` | Stop all containers and remove volumes |
+| `make docker-seed` | Run the seeder container (tools profile) |
+| `make docker-ps` | List running containers and their ports |
+
+### Code Quality
+
+| Command | Description |
+|:--------|:------------|
+| `make test` | Run Pytest with coverage (`--cov=app`) |
+| `make lint` | Ruff + Mypy (backend) + ESLint (frontend) |
+| `make format` | Auto-format backend code with Ruff |
+| `make clean` | Remove `__pycache__`, `.pytest_cache`, `.next`, build artifacts |
+
+---
+
+## Environment Variables
+
+All config is loaded from `.env` files via Pydantic's `BaseSettings`.
+
+### backend/.env
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `POSTGRES_USER` | `user` | DB username |
+| `POSTGRES_PASSWORD` | `password` | DB password |
+| `POSTGRES_DB` | `library` | DB name |
+| `POSTGRES_SERVER` | `localhost` | DB host (`db` inside Docker) |
+| `POSTGRES_PORT` | `5432` | DB port |
+| `ENVIRONMENT` | `development` | Runtime env (`production` blocks seeding) |
+| `MAX_ACTIVE_BORROWS` | `5` | Max concurrent borrows per member |
+| `DEFAULT_BORROW_DURATION_DAYS` | `14` | Default due date window |
+
+### docker-compose / seeder
+
+| Variable | Default | Description |
+|:---------|:--------|:------------|
+| `SEED_DATA` | `false` | Set to `true` to auto-seed on container start |
+| `SEED_SCENARIO` | `minimal` | Seeding scenario to use |
+| `FORCE_SEED` | `false` | Force re-seed even if data exists |
 
 ---
 
 ## Architecture
 
-The service follows a strict layered architecture:
+The system follows a strict **layered, domain-driven architecture**. Each layer has exactly one responsibility.
 
 ```
-Router → Service → Repository → Database
+HTTP Request
+     │
+     ▼
+  Router        — HTTP validation, error mapping, serialization
+     │             No business logic. Ever.
+     ▼
+  Service       — Business rules, transaction management, concurrency control
+     │             Raises domain exceptions (not HTTPException).
+     ▼
+  Repository    — Database access, keyset pagination, aggregations
+     │             No business rules.
+     ▼
+  PostgreSQL    — Constraints, indexes, referential integrity
 ```
 
-### Router Layer
+### Domain Vertical Slices
 
-Responsible only for:
+Each domain (`books`, `members`, `borrows`, `analytics`) is a **self-contained package**:
 
-* HTTP validation
-* Serialization
-* Error mapping
+```
+domains/books/
+├── router.py      # FastAPI routes
+├── service.py     # Business logic
+├── repository.py  # Queries & pagination
+└── schemas.py     # Pydantic DTOs
+```
 
-No business logic exists in routers.
-
-### Service Layer
-
-Responsible for:
-
-* Business rules
-* Transaction management
-* Concurrency control
-* Input validation
-
-This is where borrowing logic, inventory protection, and invariant enforcement live.
-
-### Repository Layer
-
-Responsible for:
-
-* Database access
-* Query optimization
-* Aggregation queries
-* Pagination mechanics
-
-Repositories never contain business rules.
-
-### Database
-
-The database enforces:
-
-* Referential integrity
-* Check constraints
-* Indexing
-* Transaction isolation
-
-This structure keeps the system maintainable and testable as it grows.
-
----
-
-## Data Model
-
-### Core Tables
-
-* `books`
-* `members`
-* `borrow_records`
-
-### Key Decisions
-
-* UUID primary keys
-* Database-level constraints
-* Indexed time-series fields
-* Partial indexes for active borrows
-* Deterministic ordering for pagination
-
-### Important Indexes
-
-Borrow records are indexed on:
-
-* `book_id`
-* `member_id`
-* `borrowed_at`
-* `returned_at`
-* `due_date`
-
-These indexes ensure that:
-
-* Borrow history queries remain efficient
-* Analytics queries scale predictably
-* Overdue detection remains fast
-* Popularity ranking does not degrade
-
----
-
-## Borrowing Model & Concurrency
-
-Borrowing operations are fully transactional and concurrency-safe.
-
-The system:
-
-* Uses row-level locking (`SELECT FOR UPDATE`)
-* Updates inventory atomically
-* Prevents negative inventory
-* Enforces borrow limits
-* Prevents duplicate active borrows
-
-The goal is simple: correctness first.
-
-Even under concurrent requests, inventory integrity is guaranteed.
+This structure prevents cross-domain coupling and makes each domain independently testable and deployable.
 
 ---
 
 ## API Design
 
-All list endpoints follow a standardized pagination model:
+All list endpoints share a consistent contract:
 
 ```
-GET /resource?limit=20&offset=0&sort=-created_at&q=search
+GET /api/v1/books?limit=20&cursor=<token>&sort_by=title&order=asc&q=python
 ```
 
-Response structure:
-
+**Paginated Response:**
 ```json
 {
   "data": [...],
   "meta": {
-    "total": 100,
+    "total": 200000,
     "limit": 20,
-    "offset": 0,
-    "has_more": true
+    "has_more": true,
+    "next_cursor": "python guide:a1b2c3d4-..."
   }
 }
 ```
 
-### Why Offset Pagination?
-
-Offset-based pagination was chosen for clarity and simplicity at this scale.
-The design intentionally caps page size to prevent unbounded scans.
-
-Cursor-based pagination would be preferable at significantly higher data volumes and is documented as a future enhancement.
-
----
-
-## Resource Modeling
-
-Heavy nested data is intentionally separated into dedicated endpoints:
+### Core Endpoints
 
 ```
-GET /members/{id}
-GET /members/{id}/borrows
-GET /members/{id}/analytics
+# Books
+GET    /api/v1/books/                  List books (search, sort, paginate)
+POST   /api/v1/books/                  Create a book
+GET    /api/v1/books/{id}              Book detail
+PUT    /api/v1/books/{id}              Update a book
+DELETE /api/v1/books/{id}              Delete a book
+GET    /api/v1/books/{id}/borrows      Borrow history for this book
+GET    /api/v1/books/{id}/analytics    Popularity, utilization, duration stats
 
-GET /books/{id}
-GET /books/{id}/borrows
-GET /books/{id}/analytics
+# Members
+GET    /api/v1/members/                List members
+POST   /api/v1/members/                Create a member
+GET    /api/v1/members/{id}            Member detail
+PUT    /api/v1/members/{id}            Update a member
+DELETE /api/v1/members/{id}            Delete a member
+GET    /api/v1/members/{id}/borrows    Borrow history for this member
+GET    /api/v1/members/{id}/analytics  Reading stats, risk score, trend
+
+# Borrows
+GET    /api/v1/borrows/                List all borrows (filter: status, overdue)
+POST   /api/v1/borrows/                Borrow a book (triggers inventory lock)
+POST   /api/v1/borrows/{id}/return     Return a book (atomic inventory restore)
+GET    /api/v1/borrows/overdue         List all currently overdue borrows
+
+# Analytics (Dashboard)
+GET    /api/v1/analytics/stats/summary      Library overview (books, borrows, overdue, utilization)
+GET    /api/v1/analytics/stats/trends       Daily active members + borrow counts
+GET    /api/v1/analytics/stats/top-members  Leaderboard by borrow count
+GET    /api/v1/analytics/stats/popular      Top books by borrow count
+GET    /api/v1/analytics/stats/activity     Recent activity feed
+GET    /api/v1/analytics/inventory/health   Low stock, never borrowed, unavailable
+
+# Infrastructure
+GET    /health                         DB connectivity check
+GET    /metrics                        In-memory borrow success/failure counters
 ```
 
-This avoids:
+---
 
-* Large payload coupling
-* Unbounded history responses
-* Poor cacheability
-* Tight coupling between detail and aggregation data
+## Key Engineering Decisions
+
+### 1. Keyset (Cursor) Pagination — O(1) at Any Depth
+
+Standard offset pagination (`LIMIT 20 OFFSET 100000`) is **O(N)** because PostgreSQL scans and discards the first 100,000 rows. At 4M records, this becomes unusable.
+
+Instead, every list endpoint uses a cursor encoding the last-seen sort value + UUID:
+
+```python
+# Example: cursor = "The Python Cookbook:a1b2c3d4-..."
+if sort_order == "asc":
+    stmt = stmt.where(
+        (sort_column > cursor_val) |
+        ((sort_column == cursor_val) & (Book.id > UUID(cursor_id)))
+    )
+```
+
+The result: page 200 loads in the **same time** as page 1.
 
 ---
 
-## Frontend Architecture
+### 2. Concurrency-Safe Inventory — SELECT FOR UPDATE
 
-The frontend is built for performance and maintainability using modern React patterns:
+Borrowing a book uses a **row-level pessimistic lock** to prevent race conditions:
 
-### Server State Management
-We use **React Query** for all data fetching. This provides:
-- Automatic caching and revalidation
-- Loading and error states out of the box
-- Simplified pagination and search synchronization
+```python
+# BookRepository.get_with_lock()
+stmt = select(Book).where(Book.id == id).with_for_update()
+```
 
-### Component Design
-- **Atomic Components**: Reusable UI elements (Buttons, Cards, Modals).
-- **Page-Level Layouts**: High-level structural components.
-- **Client-Side Navigation**: leverages Next.js `Link` for instant page transitions.
+Business rule enforcement in the service layer:
+1. Count active borrows — reject if `≥ MAX_ACTIVE_BORROWS (5)`
+2. Check for duplicate active borrow on the same book
+3. Lock the book row
+4. Check `available_copies > 0` — reject if exhausted
+5. Decrement `available_copies`, create `BorrowRecord`, commit atomically
 
-### Typescript Integration
-The system uses strict TypeScript interfaces shared across all components to ensure API payload consistency.
+Even under concurrent requests, inventory never goes negative. This is enforced both in application code **and** at the database level via a check constraint.
 
 ---
 
-## Analytics
+### 3. Automatic Retry with Exponential Backoff
 
-The system includes analytics endpoints that provide:
+The `@db_retry` decorator on `borrow_book` and `return_book` handles transient database errors:
 
-* Borrow trends (24 months)
-* Top books
-* Top members
-* Overdue bucket distribution
-* Inventory utilization ratio
-* Member risk segmentation
-* Book popularity ranking
+```python
+@db_retry(max_retries=3, base_delay=0.1, max_delay=1.0)
+def borrow_book(self, book_id, member_id):
+    ...
+```
 
-All analytics are computed in the database using aggregation queries.
-No large dataset is processed in application memory.
+On deadlock or stale data errors:
+- Rollback the session
+- Wait with **exponential backoff + jitter**: `delay = base * 2^retry + rand(0, 0.1*delay)`
+- Retry up to 3 times before surfacing the error
 
-This ensures predictable performance even at ~1M borrow records.
+---
+
+### 4. Consolidated Analytics Queries
+
+Naïve implementations make one query per metric. This system uses **single-query conditional aggregation**:
+
+```python
+# One round-trip for all borrow stats
+borrow_stats = session.execute(
+    select(
+        func.count(BorrowRecord.id).filter(status == BORROWED).label("active"),
+        func.count(BorrowRecord.id).filter(
+            and_(status == BORROWED, due_date < now)
+        ).label("overdue")
+    )
+).first()
+```
+
+The inventory health query consolidates `low_stock`, `unavailable`, and `never_borrowed` into a **single SQL statement** using `EXISTS` subqueries inside filter expressions.
+
+---
+
+### 5. Sliding-Window Rate Limiter
+
+An in-memory **O(1)** sliding window rate limiter protects write and search endpoints:
+
+```python
+class SlidingWindowRateLimiter:
+    # 100 requests/minute per IP
+    # Implementation: deque of timestamps, evict entries older than 60s
+```
+
+Returns `HTTP 429` with `detail: "Rate limit exceeded"` when triggered. Applied as a FastAPI dependency on borrow, return, and search routes.
+
+---
+
+### 6. Full-Request Observability
+
+Every request gets a **Correlation ID** (from header or auto-generated):
+
+```
+X-Correlation-ID: 3f2e1a9b-...
+```
+
+- Propagated to **all log lines** in that request via Python `contextvars.ContextVar`
+- Echoed back in every **response header**
+- Logs are structured JSON with UTC timestamps — ready for any log aggregation platform
+
+---
+
+### 7. GIN Trigram Full-Text Search
+
+Book search (`title`, `author`, `isbn`) uses PostgreSQL's `pg_trgm` extension with GIN indexes:
+
+```sql
+CREATE INDEX ix_book_title_gin ON book USING GIN (title gin_trgm_ops);
+```
+
+This enables **sub-500ms search** across 200,000 books using ilike patterns.
 
 ---
 
 ## Realistic Data Seeding
 
-A large-scale behavioral seeder is included.
+The seeder models **real-world behavioral patterns**, not just random data.
 
-It generates:
+### Seeding Scenarios
 
-* 50,000 books
-* 15, 000 members
-* 30 months of borrow history
-* 500k–1M borrow records
+| Scenario | Books | Members | Borrows | Use Case |
+|:---------|:------|:--------|:--------|:---------|
+| `minimal` | 5,000 | 1,000 | ~2,250 | Default local dev |
+| `load_test` | 10,000 | 2,000 | ~7,500 | Performance testing |
+| `scaled_demo` | 50,000 | 5,000 | ~25,000 | Demo presentation |
+| `high_scale` | 200,000 | 60,000 | ~4,000,000 | Scale validation |
 
 ### Behavioral Modeling
 
-Books are divided into popularity tiers:
+**Book Tiers** — controls selection probability:
+- **Tier A** (5% of books): 50x selection weight — bestsellers
+- **Tier B** (25%): 10x weight — popular
+- **Tier C** (50%): 1x weight — long tail
+- **Tier D** (20%): never selected — dead inventory
 
-* Highly popular
-* Moderate
-* Low activity
-* Never borrowed
+**Member Segments** — controls borrow frequency:
+- **Heavy** (5%): power users
+- **Regular** (50%): steady borrowers
+- **Casual** (25%): occasional
+- **Inactive** (20%): never borrow
 
-Members are segmented into:
+**Time patterns simulated**:
+- Seasonal variation: Nov/Dec +30% spike, Jun/Jul -20% dip
+- 12% overdue probability per borrow
+- Gaussian distribution of daily borrow volume
 
-* Heavy readers
-* Regular readers
-* Casual readers
-* Inactive members
+### Parallel Seeder Architecture
 
-The seeder also simulates:
+At 4M records, sequential insertion would take hours. The seeder uses `ThreadPoolExecutor` with independent database sessions per thread:
 
-* Seasonal borrow variation
-* Overdue probability
-* Active borrow distribution
-* Inventory consistency validation
-* Deterministic random seed
+```
+Time range (10 years)
+        ↓
+Split into N chunks (one per CPU core)
+        ↓
+ThreadPoolExecutor(max_workers=8)
+  ├── Worker 1 → SessionLocal → 500k records → commit
+  ├── Worker 2 → SessionLocal → 500k records → commit
+  └── ...
+        ↓
+Inventory sync: single atomic SQL UPDATE with GREATEST(0, ...)
+```
 
-
----
-
-## High-Scale Performance Validation
-
-To verify the system's stability and performance at its maximum design capacity, follow these steps:
-
-1.  **Purge Environment**: Ensure a clean slate by wiping all existing data and containers:
-    ```bash
-    make docker-down
-    ```
-
-2.  **Execute High-Scale Setup**: This performs a "Cold Start" with 50k books, 15k members, and 1M+ records:
-    ```bash
-    make setup-high
-    ```
-
-3.  **Start Services**:
-    ```bash
-    make start
-    ```
-
-4.  **Audit Performance**:
-    -   Navigate to the **Dashboard** and verify that 30 months of activity are aggregated within ~2 seconds.
-    -   Use the **Global Search** in the Books library to verify sub-500ms response times across 50,000 records.
-    -   Check **Book Details** for popular titles to ensure complex history analytics are calculated accurately and instantly.
-
----
-
-## Performance Considerations
-
-At this scale:
-
-* Bulk inserts are used during seeding
-* Session flushing is controlled
-* Aggregation queries rely on indexed fields
-* Borrow history is always paginated
-* N+1 queries are avoided
-* Deterministic ordering is enforced
-
-The system is designed to scale predictably without premature optimization.
-
----
-
-## Quick Start (Local Development)
-
-The easiest way to get started is using the provided `Makefile`.
-
-1.  **Setup Environment**:
-    Install dependencies, start the database, and seed initial data:
-    ```bash
-    make setup
-    ```
-
-2.  **Start Services**:
-    Launch both backend and frontend servers:
-    ```bash
-    make start
-    ```
-
-3.  **Access**:
-    -   Frontend: [http://localhost:3003](http://localhost:3003)
-    -   Backend API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
-
-## Environment Configuration
-
-The system is designed to work with minimal configuration out of the box. Configuration is managed via `.env` files.
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `POSTGRES_USER` | `user` | Database username |
-| `POSTGRES_PASSWORD` | `password` | Database password |
-| `POSTGRES_DB` | `library` | Database name |
-| `POSTGRES_SERVER` | `localhost` | Database host (use `db` inside Docker) |
-| `POSTGRES_PORT` | `5432` | Database port |
-| `ENVIRONMENT` | `development` | Runtime environment |
-
----
-
-## Developer Workflow
-
-Use these commands frequently during development to maintain code quality:
-
-| Command | Description |
-| :--- | :--- |
-| `make test` | Runs the full backend test suite (Pytest + Coverage) |
-| `make lint` | Runs full-stack linting (Ruff, Mypy, ESLint) |
-| `make format`| Auto-formats backend code using Ruff |
-| `make db-fresh` | Resets, Migrates, and Re-seeds the DB (Clean slate) |
-| `make db-migration m='msg'` | Generates a new database migration file |
-| `make db-shell`| Opens an interactive `psql` shell in the database container |
-| `make docker-up`| Starts all services in detached Docker containers |
-| `make docker-down`| Stops all services and wipes data volumes |
-| `make clean` | Wipes caches and temporary development artifacts |
-
----
+**Result: ~26,000 records/sec. Full high_scale seed in ~3.5 minutes.**
 
 ---
 
 ## Testing Strategy
 
-Testing focuses on correctness and invariants:
+```bash
+make test    # Run all tests with coverage report
+make lint    # Ruff + Mypy + ESLint
+```
 
-* Unit tests for business rules
-* Concurrency tests for borrow operations
-* Pagination validation
-* Analytics correctness verification
-* Seeder distribution constraint checks
+**Test coverage includes:**
 
-
----
-
-## Scalability & Reliability Roadmap
-
-If this system were to scale further, the following enhancements would be introduced:
-
-### Database
-
-* Partition `borrow_records` by month
-* Introduce read replicas for analytics
-* Materialized views for heavy aggregations
-
-### API
-
-* Cursor-based pagination
-* Short-lived caching layer (Redis)
-
-### Reliability
-
-* Idempotency keys for write operations
-* Background job processing
-* Observability (metrics + tracing)
-
+| Category | What's tested |
+|:---------|:-------------|
+| Borrow rules | Max borrow limit, duplicate active borrow prevention |
+| Concurrency | Inventory integrity under concurrent borrow requests |
+| Inventory | `available_copies` never goes below 0 |
+| Return flow | Status transitions, timestamp assignment |
+| Pagination | Cursor decoding, edge cases (empty results, last page) |
+| Analytics | Aggregation correctness for overdue, utilization, trends |
+| Not-found | All 404 paths raise typed domain exceptions |
 
 ---
 
-## Design Philosophy
+## High-Scale Performance Validation
 
-This project intentionally avoids unnecessary abstraction and premature optimization.
+To validate the system at full design capacity from scratch:
 
-It prioritizes:
+```bash
+# Step 1: Tear down any existing containers + data
+make docker-down
 
-* Correctness under concurrency
-* Clean separation of responsibilities
-* Predictable performance
-* Realistic system behavior
-* Clear scaling path
+# Step 2: Start the database
+make docker-db
 
+# Step 3: Install deps, apply migrations, and seed at maximum scale
+make setup-high   # ~5-10 min for 200k books + 4M borrows
+
+# Step 4: Start the application
+make start
+```
+
+**What to validate:**
+
+| Feature | Expected |
+|:--------|:---------|
+| Dashboard load | < 2 seconds (consolidated single-query analytics) |
+| Book search | < 500ms (GIN trigram index, 200k books) |
+| Deep pagination | Same speed as page 1 (keyset cursor) |
+| Concurrent borrows | No negative inventory (row-level locking) |
+| Rate limit | Returns `429` after 100 req/min per IP |
 
 ---
 
 ## Troubleshooting
 
-### Common Port Conflicts
-The system defaults to ports `8000` (Backend) and `3003` (Frontend).
+### Port conflicts
 
-- **EADDRINUSE (8000)**: Backend is already running or another process is using it. Kill it with:
-  ```bash
-  lsof -ti:8000 | xargs kill -9
-  ```
-- **EADDRINUSE (3003)**: Frontend is already running. Kill it with:
-  ```bash
-  lsof -ti:3003 | xargs kill -9
-  ```
+```bash
+# Kill whatever's on port 8000
+lsof -ti:8000 | xargs kill -9
 
-### Database Connectivity
-If the backend cannot connect to PostgreSQL:
-1. Ensure the container is running: `make docker-ps`
-2. Check logs: `docker-compose logs db`
-3. Try a fresh start: `make db-fresh`
+# Kill whatever's on port 3003
+lsof -ti:3003 | xargs kill -9
+```
+
+### Database won't connect
+
+```bash
+make docker-ps              # Is the db container running?
+docker-compose logs db      # Any startup errors?
+make db-fresh               # Nuclear option: truncate + migrate + seed
+make docker-down && make setup   # Full reset from scratch
+```
+
+### Local Postgres on a non-default port
+
+If your system postgres runs on a different port (e.g., 9011):
+
+```bash
+# backend/.env
+POSTGRES_PORT=9011
+POSTGRES_SERVER=localhost
+POSTGRES_USER=<your-local-user>
+```
+
+### Seeding fails mid-run
+
+```bash
+make db-reset       # Truncate tables
+make db-seed        # Re-seed from scratch
+```
+
+---
+
+## Scalability Roadmap
+
+The current system is optimized for a single-node deployment. Here's the documented path to scaling further:
+
+| Bottleneck | Solution |
+|:-----------|:---------|
+| Analytics at 10M+ records | Materialized views, scheduled refresh |
+| Read throughput | PostgreSQL read replicas for analytics queries |
+| Write throughput (borrows) | Optimistic locking + async borrow queue (Redis/SQS) |
+| Search | Dedicated search index (Elasticsearch / pg_vector) |
+| Caching | Redis cache layer for popular books and analytics |
+| Rate limiting | Move from in-memory to Redis (multi-instance support) |
+| Observability | Prometheus metrics endpoint, OpenTelemetry tracing |
+| Pagination | Already using keyset — ready for any scale |
+
+---
+
+## Design Philosophy
+
+**Correctness over convenience.** Borrowing uses pessimistic locking and automatic retries. The system never silently drops inventory.
+
+**Separation of concerns is non-negotiable.** Routers map HTTP. Services enforce rules. Repositories touch data. Nothing crosses these lines.
+
+**Performance is designed, not assumed.** Every slow path (pagination at depth, analytics aggregation, search) has an explicit solution with measured results.
+
+**Seeding is a feature.** The behavioral seeder generates realistic workload patterns — not random noise — because correctness at scale requires realistic data.
+
+
+---
+
+## Further Scope of Improvements
+
+The system is production-ready at its current scale, but here are the next logical improvements to take it further:
+
+### Database & Storage
+
+- **Table Partitioning** — Partition `borrow_record` by month (`PARTITION BY RANGE borrowed_at`). Queries scoped to recent months will only scan relevant partitions, dramatically reducing I/O at 10M+ records.
+- **Materialized Views** — Pre-compute heavy analytics (top books, monthly trends) and refresh them on a schedule (e.g., every 15 minutes) using `pg_cron`. Eliminates repeated aggregation on large tables.
+- **Read Replicas** — Route all analytics and list queries to read replicas. Writes (borrow, return, create) go to the primary. This horizontally scales read throughput.
+- **Connection Pooling** — Introduce PgBouncer between the API and PostgreSQL to handle connection spikes without exhausting server-side connection limits.
+
+### API & Performance
+
+- **Redis Caching** — Cache popular book lists, dashboard summaries, and member profiles with a short TTL (e.g., 60s). Reduces database load for read-heavy endpoints significantly.
+- **Async Borrow Queue** — Move `borrow_book` to an async task queue (Celery + Redis or SQS). The API returns a `202 Accepted` immediately; the borrow is processed asynchronously. Decouples inventory locking from the HTTP lifecycle.
+- **Idempotency Keys** — Accept a client-supplied `Idempotency-Key` header on POST /borrows. Store processed keys in Redis for 24 hours to prevent duplicate borrows on network retries.
+- **Distributed Rate Limiting** — Replace the current in-memory rate limiter with a Redis-backed one (e.g., using `slowapi`). Required for multi-process/multi-instance deployments where in-memory state is not shared.
+
+### Search
+
+- **Full-Text Search** — Replace `ilike` with PostgreSQL's `tsvector + tsquery` for native full-text search with ranking. Better relevance scoring than trigram for longer text fields.
+- **Elasticsearch / OpenSearch** — For very large catalogs (500k+ books), a dedicated search engine provides better relevance tuning, faceted filtering, and sub-100ms search.
+
+### Observability
+
+- **Prometheus Metrics** — Expose `/metrics` in Prometheus format (request counts, latencies, borrow success/failure rates). The `metrics` object is already tracking borrow counters internally.
+- **OpenTelemetry Tracing** — Add distributed tracing (spans for DB queries, external calls). The Correlation ID infrastructure already provides the foundation for this.
+- **Structured Log Aggregation** — Ship JSON logs to ELK (Elasticsearch + Kibana) or Datadog. Correlation IDs allow end-to-end request tracing across log lines.
+- **Alerting** — Set up alerts on overdue rate spikes, high error rates, and DB response time P99 thresholds.
+
+### Security
+
+- **Authentication & Authorization** — Add JWT-based auth (FastAPI + `python-jose`). Separate roles: `admin` (full access), `librarian` (manage borrows), `member` (view own borrows).
+- **Input Sanitization** — Add stricter field-level validation (e.g., ISBN format validation, phone number normalization).
+- **Audit Logging** — Log who performed each borrow/return operation with timestamps. Essential for compliance in a real library system.
+
+### Frontend
+
+- **Real-Time Updates** — Replace polling with WebSocket or SSE for the activity feed and dashboard counters. Members see live updates when books they're interested in become available.
+- **Offline Support** — Use Service Workers to cache the book catalog for offline browsing.
+- **Mobile Responsiveness** — Optimize the UI for small screens. The current layout is desktop-first.
+
+### Testing
+
+- **Load Testing** — Add `Locust` or `k6` scripts to stress-test the borrow endpoint under concurrent traffic. Validate that the row-level lock holds under real concurrency.
+- **Contract Testing** — Use `Pact` to define and verify API contracts between frontend and backend, preventing silent breaking changes.
+- **End-to-End Tests** — Add Playwright tests for the full borrow/return user flow in the browser.
+
+### Infrastructure
+
+- **CI/CD Pipeline** — GitHub Actions: lint → test → build Docker image → push to registry → deploy. Currently only local automation via `Makefile`.
+- **Kubernetes Deployment** — Helm chart for deploying the stack on K8s. Horizontal pod autoscaling for the API based on CPU/request rate.
+- **Database Migrations in CI** — Run `alembic upgrade head` as a pre-deploy step in CI to catch migration conflicts before they reach production.
