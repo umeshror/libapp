@@ -330,37 +330,40 @@ All config is loaded from `.env` files via Pydantic's `BaseSettings`.
 
 ## Architecture
 
-The system follows a strict **layered, domain-driven architecture**. Each layer has exactly one responsibility.
+The codebase is organized into **domain-driven vertical slices**. Each domain owns its full stack — router, service, repository, and schemas — with no cross-domain leakage.
 
 ```
-HTTP Request
-     │
-     ▼
-  Router        — HTTP validation, error mapping, serialization
-     │             No business logic. Ever.
-     ▼
-  Service       — Business rules, transaction management, concurrency control
-     │             Raises domain exceptions (not HTTPException).
-     ▼
-  Repository    — Database access, keyset pagination, aggregations
-     │             No business rules.
-     ▼
-  PostgreSQL    — Constraints, indexes, referential integrity
+domains/
+├── books/          ← books only: listing, search, inventory, analytics
+├── members/        ← members only: profiles, history, risk scoring
+├── borrows/        ← borrow lifecycle: lock → create → return → release
+└── analytics/      ← aggregations only: never writes, never owns data
 ```
 
-### Domain Vertical Slices
-
-Each domain (`books`, `members`, `borrows`, `analytics`) is a **self-contained package**:
+Within each domain, a strict **four-layer boundary** is enforced:
 
 ```
-domains/books/
-├── router.py      # FastAPI routes
-├── service.py     # Business logic
-├── repository.py  # Queries & pagination
-└── schemas.py     # Pydantic DTOs
+HTTP → Router → Service → Repository → PostgreSQL
+
+Router:
+  Validate & serialize. No business logic.
+
+Service:
+  Enforce invariants. Define transactions. Manage locks.
+
+Repository:
+  Execute queries. Handle pagination & aggregations.
+
+PostgreSQL:
+  Enforce constraints. Maintain integrity. Optimize execution.
 ```
 
-This structure prevents cross-domain coupling and makes each domain independently testable and deployable.
+**Services never raise `HTTPException`.** They raise typed domain exceptions (`InventoryUnavailableError`, `BorrowLimitExceededError`, etc.) that are mapped to HTTP responses by a centralized exception handler in `api/exception_handlers.py`. This keeps the service layer fully testable without an HTTP context.
+
+**Repositories never contain business rules.** A repository can tell you how many books are available. It cannot decide whether that number is enough to allow a borrow — that decision lives in the service.
+
+This boundary is the reason the system stays maintainable as it grows. Adding a new feature means touching exactly one domain. Adding a new query means touching exactly one repository. Nothing bleeds.
+
 
 ---
 
