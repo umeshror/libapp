@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "library"
     POSTGRES_PORT: int = 5432
+    POSTGRES_URL: str | None = None
 
     # Business Logic Config
     MAX_ACTIVE_BORROWS: int = 5
@@ -18,6 +19,9 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        if self.POSTGRES_URL:
+            # Handles Vercel/Supabase style URLs, replacing legacy postgres:// if present
+            return self.POSTGRES_URL.replace("postgres://", "postgresql://", 1)
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     model_config = SettingsConfigDict(
