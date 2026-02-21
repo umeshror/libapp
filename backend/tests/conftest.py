@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 from app.models import Base
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.shared.deps import get_db
 
@@ -20,6 +20,12 @@ def shared_engine():
     
     # Ensure clean state for the test module
     Base.metadata.drop_all(bind=engine)
+    
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+        if hasattr(conn, "commit"):
+            conn.commit()
+            
     Base.metadata.create_all(bind=engine)
     return engine
 

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, Integer, String, CheckConstraint
+from sqlalchemy import Column, Integer, String, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from app.models.base import Base, TimestampMixin
 
@@ -29,4 +29,7 @@ class Book(Base, TimestampMixin):
         CheckConstraint(
             "available_copies >= 0", name="check_available_copies_non_negative"
         ),
+        Index("ix_book_title_trgm", "title", postgresql_using="gin", postgresql_ops={"title": "gin_trgm_ops"}),
+        Index("ix_book_author_trgm", "author", postgresql_using="gin", postgresql_ops={"author": "gin_trgm_ops"}),
+        Index("ix_book_isbn_trgm", "isbn", postgresql_using="gin", postgresql_ops={"isbn": "gin_trgm_ops"}),
     )

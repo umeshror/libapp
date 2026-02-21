@@ -26,20 +26,21 @@ class BorrowRecord(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     book_id = Column(
-        UUID(as_uuid=True), ForeignKey("book.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("book.id", ondelete="CASCADE"), nullable=False, index=True
     )
     member_id = Column(
-        UUID(as_uuid=True), ForeignKey("member.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("member.id", ondelete="CASCADE"), nullable=False, index=True
     )
     borrowed_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True
     )
     due_date = Column(DateTime, nullable=True, index=True)
-    returned_at = Column(DateTime, nullable=True)
+    returned_at = Column(DateTime, nullable=True, index=True)
     status = Column(
         Enum(BorrowStatus, values_callable=lambda obj: [e.value for e in obj]),
         default=BorrowStatus.BORROWED,
         nullable=False,
+        index=True,
     )  # type: ignore
 
     book = relationship("Book", backref="borrow_records")
