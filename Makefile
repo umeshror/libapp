@@ -1,6 +1,6 @@
 # --- Neighborhood Library Makefile ---
 
-.PHONY: help install dev start setup test lint format build db-migrate db-migration db-seed db-reset db-fresh db-seed-high db-shell docker-db docker-up docker-down docker-ps clean
+.PHONY: help install dev start setup test lint format build db-migrate db-migration db-seed db-seed-high db-reset db-fresh db-shell docker-db docker-up docker-down docker-seed docker-ps clean
 
 # Help command to list available targets
 help:
@@ -21,6 +21,7 @@ help:
 	@echo "  docker-db  - Starts the PostgreSQL container via docker-compose"
 	@echo "  docker-up  - Starts all services via docker-compose"
 	@echo "  docker-down - Stops all services and removes data volumes"
+	@echo "  docker-seed - Manually triggers a CLEAR + SEED via Docker profile"
 	@echo "  docker-ps  - Lists running containers"
 	@echo "  clean      - Remove cache files and temporary data"
 
@@ -93,6 +94,9 @@ docker-up:
 docker-down:
 	docker-compose down -v
 
+docker-seed:
+	docker-compose --profile tools run --rm seed
+
 docker-ps:
 	docker-compose ps
 
@@ -102,5 +106,6 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type d -name ".ruff_cache" -exec rm -rf {} +
 	find . -type d -name ".mypy_cache" -exec rm -rf {} +
+	rm -rf backend/migrations/__pycache__
 	rm -rf backend/.coverage
 	rm -rf frontend/.next

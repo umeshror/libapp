@@ -42,6 +42,7 @@ class MemberService:
         limit: int = 20,
         query: Optional[str] = None,
         sort: str = "-created_at",
+        cursor: Optional[str] = None,
     ) -> PaginatedResponse[MemberResponse]:
         if limit > 100:
             raise ValueError("Limit cannot exceed 100")
@@ -64,10 +65,12 @@ class MemberService:
             query=query,
             sort_field=sort_field,
             sort_order=sort_order,
+            cursor=cursor,
         )
 
         items = result["items"]
         total = result["total"]
+        next_cursor = result.get("next_cursor")
 
         return PaginatedResponse(
             data=[MemberResponse.model_validate(m) for m in items],
@@ -75,7 +78,8 @@ class MemberService:
                 total=total,
                 limit=limit,
                 offset=offset,
-                has_more=(offset + limit) < total,
+                has_more=next_cursor is not None if cursor else (offset + limit) < total,
+                next_cursor=next_cursor,
             ),
         )
 

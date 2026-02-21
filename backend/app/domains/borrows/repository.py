@@ -73,6 +73,7 @@ class BorrowRepository:
         query: Optional[str] = None,
         sort_field: str = "borrowed_at",
         sort_order: str = "desc",
+        cursor: Optional[str] = None,
     ) -> dict:
         """List borrow records with filtering by member, status, overdue, and search."""
         stmt = select(BorrowRecord).options(
@@ -108,14 +109,56 @@ class BorrowRepository:
 
 
         sort_column = getattr(BorrowRecord, sort_field, BorrowRecord.borrowed_at)
+
+        # Keyset Pagination
+        if cursor:
+            try:
+                cursor_val_str, cursor_id = cursor.split(":")
+                if sort_field in ["borrowed_at", "returned_at", "due_date"]:
+                    cursor_val = datetime.fromisoformat(cursor_val_str)
+                else:
+                    cursor_val = cursor_val_str
+
+                if sort_order == "desc":
+                    stmt = stmt.where(
+                        (sort_column < cursor_val) | 
+                        ((sort_column == cursor_val) & (BorrowRecord.id < UUID(cursor_id)))
+                    )
+                else:
+                    stmt = stmt.where(
+                        (sort_column > cursor_val) | 
+                        ((sort_column == cursor_val) & (BorrowRecord.id > UUID(cursor_id)))
+                    )
+            except:
+                pass
+
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())
         else:
             stmt = stmt.order_by(sort_column.asc())
 
-        stmt = stmt.order_by(BorrowRecord.id)  # Deterministic
+        # Deterministic secondary sort
+        if sort_order == "desc":
+            stmt = stmt.order_by(BorrowRecord.id.desc())
+        else:
+            stmt = stmt.order_by(BorrowRecord.id.asc())
 
-        stmt = stmt.offset(skip).limit(limit)
+        if not cursor:
+            stmt = stmt.offset(skip)
+            
+        stmt = stmt.limit(limit)
         results = self.session.execute(stmt).scalars().all()
 
-        return {"items": results, "total": total}
+        next_cursor = None
+        if len(results) >= limit:
+            last_item = results[-1]
+            last_val = getattr(last_item, sort_field)
+            if last_val:
+                last_val_str = last_val.isoformat() if isinstance(last_val, datetime) else str(last_val)
+                next_cursor = f"{last_val_str}:{last_item.id}"
+
+        return {
+            "items": results,
+            "total": total,
+            "next_cursor": next_cursor
+        }

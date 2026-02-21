@@ -62,6 +62,7 @@ class BookRepository:
         query: Optional[str] = None,
         sort_field: str = "created_at",
         sort_order: str = "desc",
+        cursor: Optional[str] = None,
     ) -> dict:
         """
         Lists books with filtering, sorting, and pagination.
@@ -85,20 +86,69 @@ class BookRepository:
         # Sorting
         sort_column = getattr(Book, sort_field, Book.created_at)
 
+        # Keyset Pagination (Cursor Support)
+        if cursor:
+            try:
+                # Expecting cursor in format "val:uuid"
+                cursor_val_str, cursor_id = cursor.split(":")
+                
+                # Convert cursor_val to appropriate type based on sort_field
+                if sort_field == "created_at":
+                    cursor_val = datetime.fromisoformat(cursor_val_str)
+                elif sort_field in ["total_copies", "available_copies"]:
+                    cursor_val = int(cursor_val_str)
+                else:
+                    cursor_val = cursor_val_str
+
+                if sort_order == "desc":
+                    stmt = stmt.where(
+                        (sort_column < cursor_val) | 
+                        ((sort_column == cursor_val) & (Book.id < UUID(cursor_id)))
+                    )
+                else:
+                    stmt = stmt.where(
+                        (sort_column > cursor_val) | 
+                        ((sort_column == cursor_val) & (Book.id > UUID(cursor_id)))
+                    )
+            except (ValueError, Exception):
+                # Fallback to offset if cursor is malformed
+                pass
+
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())
         else:
             stmt = stmt.order_by(sort_column.asc())
 
         # Deterministic secondary sort
-        stmt = stmt.order_by(Book.id)
+        if sort_order == "desc":
+            stmt = stmt.order_by(Book.id.desc())
+        else:
+            stmt = stmt.order_by(Book.id.asc())
 
-        # Pagination
-        stmt = stmt.offset(skip).limit(limit)
+        # Pagination: Only use offset if no cursor
+        if not cursor:
+            stmt = stmt.offset(skip)
+        
+        stmt = stmt.limit(limit)
 
         results = self.session.execute(stmt).scalars().all()
+        
+        # Generate next_cursor if results exist
+        next_cursor = None
+        if len(results) >= limit:
+            last_item = results[-1]
+            last_val = getattr(last_item, sort_field)
+            if isinstance(last_val, datetime):
+                last_val_str = last_val.isoformat()
+            else:
+                last_val_str = str(last_val)
+            next_cursor = f"{last_val_str}:{last_item.id}"
 
-        return {"items": results, "total": total}
+        return {
+            "items": results,
+            "total": total,
+            "next_cursor": next_cursor
+        }
 
     def update(self, id: UUID, obj_in: BookUpdate) -> Optional[BookResponse]:
         db_obj = self.session.get(Book, id)

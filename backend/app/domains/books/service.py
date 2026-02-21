@@ -39,6 +39,7 @@ class BookService:
         limit: int = 20,
         query: Optional[str] = None,
         sort: str = "-created_at",
+        cursor: Optional[str] = None,
     ) -> PaginatedResponse[BookResponse]:
         """List books with validated pagination, search, and sort parameters."""
         if limit > 100:
@@ -64,10 +65,12 @@ class BookService:
             query=query,
             sort_field=sort_field,
             sort_order=sort_order,
+            cursor=cursor,
         )
 
         items = result["items"]
         total = result["total"]
+        next_cursor = result.get("next_cursor")
 
         return PaginatedResponse(
             data=[BookResponse.model_validate(book) for book in items],
@@ -75,7 +78,8 @@ class BookService:
                 total=total,
                 limit=limit,
                 offset=offset,
-                has_more=(offset + limit) < total,
+                has_more=next_cursor is not None if cursor else (offset + limit) < total,
+                next_cursor=next_cursor,
             ),
         )
 

@@ -26,33 +26,29 @@ class AnalyticsRepository:
         self.session = session
 
     def get_overview_stats(self, start_date: date, end_date: date) -> AnalyticsOverview:
-        # 1. Total books
-        total_books = self.session.execute(select(func.count(Book.id))).scalar() or 0
-
-        # 2. Active borrows (current snapshot)
-        active_borrows = (
-            self.session.execute(
-                select(func.count(BorrowRecord.id))
-                .where(BorrowRecord.status == BorrowStatus.BORROWED)
-            ).scalar()
-            or 0
-        )
-
-        # 3. Overdue borrows (current snapshot)
         now = datetime.now(timezone.utc)
-        overdue_borrows = (
-            self.session.execute(
-                select(func.count(BorrowRecord.id))
-                .where(
-                    BorrowRecord.status == BorrowStatus.BORROWED,
-                    BorrowRecord.due_date < now,
-                )
-            ).scalar()
-            or 0
-        )
 
-        # 4. Utilization Rate
-        total_capacity = self.session.execute(select(func.sum(Book.total_copies))).scalar() or 0
+        # Consolidate stats from both tables in 2 round-trips
+        book_stats = self.session.execute(
+            select(
+                func.count(Book.id).label("total_books"),
+                func.sum(Book.total_copies).label("total_capacity")
+            )
+        ).first()
+
+        borrow_stats = self.session.execute(
+            select(
+                func.count(BorrowRecord.id).filter(BorrowRecord.status == BorrowStatus.BORROWED).label("active"),
+                func.count(BorrowRecord.id).filter(
+                    and_(BorrowRecord.status == BorrowStatus.BORROWED, BorrowRecord.due_date < now)
+                ).label("overdue")
+            )
+        ).first()
+
+        total_books = book_stats.total_books or 0
+        total_capacity = book_stats.total_capacity or 0
+        active_borrows = borrow_stats.active or 0
+        overdue_borrows = borrow_stats.overdue or 0
 
         utilization_rate = 0.0
         if total_capacity > 0:
@@ -119,35 +115,22 @@ class AnalyticsRepository:
         ]
 
     def get_inventory_health(self) -> InventoryHealth:
-        # Low stock: available <= 1
-        low_stock = (
-            self.session.execute(
-                select(func.count(Book.id)).where(Book.available_copies <= 1)
-            ).scalar()
-            or 0
+        # Consolidate all book health metrics into a single query
+        stmt = select(
+            func.count(Book.id).filter(Book.available_copies <= 1).label("low_stock"),
+            func.count(Book.id).filter(Book.available_copies == 0).label("unavailable"),
+            # Optimized 'never borrowed' check using EXISTS subquery inside filter
+            func.count(Book.id).filter(
+                ~select(BorrowRecord.id).where(BorrowRecord.book_id == Book.id).exists()
+            ).label("never_borrowed")
         )
-
-        # Fully unavailable: available == 0
-        unavailable = (
-            self.session.execute(
-                select(func.count(Book.id)).where(Book.available_copies == 0)
-            ).scalar()
-            or 0
-        )
-
-        # Never borrowed
-        never_borrowed = (
-            self.session.execute(
-                select(func.count(Book.id))
-                .where(~Book.borrow_records.any())
-            ).scalar()
-            or 0
-        )
+        
+        result = self.session.execute(stmt).first()
 
         return InventoryHealth(
-            low_stock_books=low_stock,
-            never_borrowed_books=never_borrowed,
-            fully_unavailable_books=unavailable,
+            low_stock_books=result.low_stock or 0,
+            never_borrowed_books=result.never_borrowed or 0,
+            fully_unavailable_books=result.unavailable or 0,
         )
 
     def get_daily_active_members(

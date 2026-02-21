@@ -8,11 +8,15 @@ from faker import Faker
 sys.path.append(os.getcwd())
 
 from app.db.session import SessionLocal
+from app.models.book import Book
+from app.models.member import Member
+from app.models.borrow_record import BorrowRecord
 from app.seeds.scenarios import SCENARIOS
 from app.seeds.seed_books import seed_books
 from app.seeds.seed_members import seed_members
 from app.seeds.seed_borrows import seed_borrows
 from app.seeds.high_scale_seeder import seed_high_scale
+from sqlalchemy import text
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +25,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def run_seed(scenario_name: str):
+def is_db_empty(db: SessionLocal) -> bool:
+    book_count = db.query(Book).count()
+    member_count = db.query(Member).count()
+    return book_count == 0 and member_count == 0
+
+
+def clear_data(db: SessionLocal):
+    logger.info("Clearing existing data...")
+    try:
+        # Delete in order of dependency
+        db.execute(text("TRUNCATE TABLE borrow_record RESTART IDENTITY CASCADE"))
+        db.execute(text("TRUNCATE TABLE member RESTART IDENTITY CASCADE"))
+        db.execute(text("TRUNCATE TABLE book RESTART IDENTITY CASCADE"))
+        db.commit()
+        logger.info("Database cleared successfully.")
+    except Exception as e:
+        logger.error(f"Failed to clear database: {e}")
+        db.rollback()
+        raise e
+
+
+def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False):
     logger.info(f"Starting seeding for scenario: {scenario_name}")
 
     if scenario_name not in SCENARIOS:
@@ -39,6 +64,14 @@ def run_seed(scenario_name: str):
     db = SessionLocal()
 
     try:
+        if if_empty:
+            if not is_db_empty(db):
+                logger.info("Database is not empty. Skipping seeding as --if-empty was specified.")
+                return
+
+        if clear:
+            clear_data(db)
+
         # 1. Check if high_scale
         if scenario_name == "high_scale":
             seed_high_scale(db, config, faker)
@@ -78,6 +111,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--scenario", type=str, default="minimal", help="Seeding scenario to run"
     )
+    parser.add_argument(
+        "--clear", action="store_true", help="Clear existing data before seeding"
+    )
+    parser.add_argument(
+        "--if-empty", action="store_true", help="Only seed if the database is empty"
+    )
     args = parser.parse_args()
 
     # Environment Check
@@ -86,4 +125,4 @@ if __name__ == "__main__":
         logger.error("Cannot run seeding in production environment!")
         sys.exit(1)
 
-    run_seed(args.scenario)
+    run_seed(args.scenario, args.clear, args.if_empty)

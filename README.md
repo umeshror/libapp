@@ -13,12 +13,12 @@ While the functional scope resembles a typical take-home assignment (books, memb
 * Efficient aggregation queries
 * Predictable performance at mid-scale
 
-The system supports:
-
-* 50,000 books
-* 15,000 members
-* ~500,000–1,000,000 borrow records
-* 24 months of simulated activity
+The system tested with:
+* 200,000 books
+* 60,000 members
+* ~4,000,000 borrow records
+* 120 months of simulated activity
+* 10000 overdue borrows
 * Analytics and entity-level insights
 
 This repository is structured to reflect how such a system might evolve in a real-world environment.

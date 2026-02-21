@@ -43,6 +43,7 @@ class MemberRepository:
         query: Optional[str] = None,
         sort_field: str = "created_at",
         sort_order: str = "desc",
+        cursor: Optional[str] = None,
     ) -> dict:
         stmt = select(Member)
 
@@ -56,17 +57,57 @@ class MemberRepository:
         total = self.session.execute(count_stmt).scalar() or 0
 
         sort_column = getattr(Member, sort_field, Member.created_at)
+
+        # Keyset Pagination
+        if cursor:
+            try:
+                cursor_val_str, cursor_id = cursor.split(":")
+                if sort_field == "created_at":
+                    cursor_val = datetime.fromisoformat(cursor_val_str)
+                else:
+                    cursor_val = cursor_val_str
+
+                if sort_order == "desc":
+                    stmt = stmt.where(
+                        (sort_column < cursor_val) | 
+                        ((sort_column == cursor_val) & (Member.id < UUID(cursor_id)))
+                    )
+                else:
+                    stmt = stmt.where(
+                        (sort_column > cursor_val) | 
+                        ((sort_column == cursor_val) & (Member.id > UUID(cursor_id)))
+                    )
+            except:
+                pass
+
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())
         else:
             stmt = stmt.order_by(sort_column.asc())
 
-        stmt = stmt.order_by(Member.id)  # Deterministic
+        if sort_order == "desc":
+            stmt = stmt.order_by(Member.id.desc())
+        else:
+            stmt = stmt.order_by(Member.id.asc())
 
-        stmt = stmt.offset(skip).limit(limit)
+        if not cursor:
+            stmt = stmt.offset(skip)
+            
+        stmt = stmt.limit(limit)
         results = self.session.execute(stmt).scalars().all()
 
-        return {"items": results, "total": total}
+        next_cursor = None
+        if len(results) >= limit:
+            last_item = results[-1]
+            last_val = getattr(last_item, sort_field)
+            last_val_str = last_val.isoformat() if isinstance(last_val, datetime) else str(last_val)
+            next_cursor = f"{last_val_str}:{last_item.id}"
+
+        return {
+            "items": results,
+            "total": total,
+            "next_cursor": next_cursor
+        }
 
     def get_core_stats(self, member_id: UUID) -> dict:
         """

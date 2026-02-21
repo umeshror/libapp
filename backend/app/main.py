@@ -10,9 +10,10 @@ from app.shared.deps import get_db
 from app.api.v1 import v1_router
 from app.core.exceptions import LibraryAppError
 from app.api.exception_handlers import library_exception_handler
-from app.core.logging import logger, request_id_ctx
+from app.core.logging import logger, correlation_id_ctx
 from app.core.metrics import metrics
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.security import rate_limit_dependency
 
 
 def get_application() -> FastAPI:
@@ -26,17 +27,24 @@ def get_application() -> FastAPI:
     # Middleware: CORS
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://localhost:3003"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:3003",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3003",
+            "http://0.0.0.0:3000",
+            "http://0.0.0.0:3003",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    # Middleware: Request ID & Logging
+    # Middleware: Correlation ID & Logging
     @application.middleware("http")
     async def request_middleware(request: Request, call_next):
-        req_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        token = request_id_ctx.set(req_id)
+        corr_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
+        token = correlation_id_ctx.set(corr_id)
 
         start_time = time.time()
         logger.info(f"Started {request.method} {request.url.path}")
@@ -45,7 +53,7 @@ def get_application() -> FastAPI:
             response = await call_next(request)
             process_time = time.time() - start_time
 
-            response.headers["X-Request-ID"] = req_id
+            response.headers["X-Correlation-ID"] = corr_id
 
             logger.info(
                 f"Completed {request.method} {request.url.path} Status: {response.status_code} Duration: {process_time:.4f}s"
@@ -55,7 +63,7 @@ def get_application() -> FastAPI:
             logger.error(f"Request failed: {str(e)}")
             raise e
         finally:
-            request_id_ctx.reset(token)
+            correlation_id_ctx.reset(token)
 
     # Versioned API routes
     application.include_router(v1_router, prefix="/api/v1")

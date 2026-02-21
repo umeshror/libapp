@@ -10,27 +10,31 @@ from app.domains.books.service import BookService
 from app.domains.books.schemas import (
     BookCreate, BookUpdate, BookResponse, BookDetailResponse,
 )
+from app.core.security import rate_limit_dependency
 
 router = APIRouter()
 
 
-@router.post("/", response_model=BookResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=BookResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency)])
 def create_book(book_in: BookCreate, db: Session = Depends(get_db)):
     service = BookService(db)
     return service.create_book(book_in)
 
 
-@router.get("/", response_model=PaginatedResponse[BookResponse])
+@router.get("/", response_model=PaginatedResponse[BookResponse], dependencies=[Depends(rate_limit_dependency)])
 def list_books(
     offset: int = 0,
     limit: int = 20,
     q: Optional[str] = None,
     sort: str = "-created_at",
+    cursor: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     service = BookService(db)
     try:
-        return service.list_books(offset=offset, limit=limit, query=q, sort=sort)
+        return service.list_books(
+            offset=offset, limit=limit, query=q, sort=sort, cursor=cursor
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -44,7 +48,7 @@ def get_book(book_id: UUID, db: Session = Depends(get_db)):
     return book
 
 
-@router.put("/{book_id}", response_model=BookResponse)
+@router.put("/{book_id}", response_model=BookResponse, dependencies=[Depends(rate_limit_dependency)])
 def update_book(book_id: UUID, book_in: BookUpdate, db: Session = Depends(get_db)):
     service = BookService(db)
     book = service.update_book(book_id, book_in)

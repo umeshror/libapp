@@ -1,6 +1,6 @@
 """Shared schemas used across all domain modules."""
 
-from typing import Generic, TypeVar, List
+from typing import Generic, TypeVar, List, Optional
 from pydantic import BaseModel, Field
 
 T = TypeVar("T")
@@ -13,6 +13,7 @@ class PaginationMeta(BaseModel):
     limit: int = Field(..., description="Maximum number of items returned")
     offset: int = Field(..., description="Number of items skipped")
     has_more: bool = Field(..., description="Whether there are more items available")
+    next_cursor: Optional[str] = Field(None, description="Cursor for the next page (for keyset pagination)")
 
 
 class PaginatedResponse(BaseModel, Generic[T]):

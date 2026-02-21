@@ -154,6 +154,7 @@ class BorrowService:
         overdue: bool = False,
         query: Optional[str] = None,
         sort: str = "-borrowed_at",
+        cursor: Optional[str] = None,
     ) -> PaginatedResponse[BorrowRecordResponse]:
         if limit > 100:
             raise ValueError("Limit cannot exceed 100")
@@ -178,10 +179,12 @@ class BorrowService:
             query=query,
             sort_field=sort_field,
             sort_order=sort_order,
+            cursor=cursor,
         )
 
         items = result["items"]
         total = result["total"]
+        next_cursor = result.get("next_cursor")
 
         return PaginatedResponse(
             data=[BorrowRecordResponse.model_validate(r) for r in items],
@@ -189,6 +192,7 @@ class BorrowService:
                 total=total,
                 limit=limit,
                 offset=offset,
-                has_more=(offset + limit) < total,
+                has_more=next_cursor is not None if cursor else (offset + limit) < total,
+                next_cursor=next_cursor,
             ),
         )

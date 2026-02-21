@@ -29,6 +29,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-library}
+      SEED_DATA: ${SEED_DATA:-false}
+      SEED_SCENARIO: ${SEED_SCENARIO:-minimal}
     ports:
       - "8000:8000"
     healthcheck:
@@ -38,6 +40,34 @@ services:
       retries: 3
     volumes:
       - ./backend:/app
+
+  seed:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_SERVER: db
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-library}
+    command: [ "python", "app/seeds/seed_runner.py", "--scenario", "minimal", "--clear" ]
+    profiles:
+      - tools
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3003:3003"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - api
 
 volumes:
   postgres_data:

@@ -1,0 +1,346 @@
+Starting backend on :8000 and frontend on :3003...
+(cd backend && python -m uvicorn app.main:app --reload --port 8000) & (cd frontend && npm run dev)
+INFO:     Will watch for changes in these directories: ['/Users/umeshsaruk/pprojects/libapp/backend']
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [20186] using WatchFiles
+
+> frontend@0.1.0 dev
+> next dev -p 3003
+
+INFO:     Started server process [20220]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+  ▲ Next.js 13.5.6
+  - Local:        http://localhost:3003
+  - Environments: .env.local
+
+ ✓ Ready in 1573ms
+{"timestamp": "2026-02-21T14:23:00.453838+00:00", "level": "INFO", "message": "Started GET /health", "module": "main", "correlation_id": "b939917c-43e0-4169-8368-e526eb9b9708"}
+{"timestamp": "2026-02-21T14:23:00.509517+00:00", "level": "INFO", "message": "Completed GET /health Status: 200 Duration: 0.0558s", "module": "main", "correlation_id": "b939917c-43e0-4169-8368-e526eb9b9708"}
+{"timestamp": "2026-02-21T14:23:00.522670+00:00", "level": "INFO", "message": "Started GET /api/v1/members/", "module": "main", "correlation_id": "8249499e-f20b-4479-a58b-6972331138c9"}
+{"timestamp": "2026-02-21T14:23:00.539777+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/ Status: 200 Duration: 0.0171s", "module": "main", "correlation_id": "8249499e-f20b-4479-a58b-6972331138c9"}
+ ○ Compiling /dashboard/page ...
+ ✓ Compiled /dashboard/page in 4.9s (1713 modules)
+ ✓ Compiled in 414ms (849 modules)
+{"timestamp": "2026-02-21T14:23:36.870810+00:00", "level": "INFO", "message": "Started GET /health", "module": "main", "correlation_id": "8f9b7c4b-f885-4c56-b3cc-bb763dbf2095"}
+{"timestamp": "2026-02-21T14:23:36.877637+00:00", "level": "INFO", "message": "Completed GET /health Status: 200 Duration: 0.0073s", "module": "main", "correlation_id": "8f9b7c4b-f885-4c56-b3cc-bb763dbf2095"}
+ ✓ Compiled /books/page in 540ms (1712 modules)
+{"timestamp": "2026-02-21T14:23:46.353920+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/books/", "module": "main", "correlation_id": "6184d6d4-c1ac-407f-b15c-7606cdd62a09"}
+{"timestamp": "2026-02-21T14:23:46.354511+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/books/ Status: 200 Duration: 0.0006s", "module": "main", "correlation_id": "6184d6d4-c1ac-407f-b15c-7606cdd62a09"}
+{"timestamp": "2026-02-21T14:23:46.356599+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "c5c9ed63-25a4-47d4-9411-4a4bf79ee47d"}
+{"timestamp": "2026-02-21T14:23:46.376713+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0201s", "module": "main", "correlation_id": "c5c9ed63-25a4-47d4-9411-4a4bf79ee47d"}
+{"timestamp": "2026-02-21T14:24:00.354969+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "675578cf-9a2f-4410-93ca-c6854c1a3b1c"}
+{"timestamp": "2026-02-21T14:24:00.384805+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0309s", "module": "main", "correlation_id": "675578cf-9a2f-4410-93ca-c6854c1a3b1c"}
+{"timestamp": "2026-02-21T14:24:19.794509+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/books/", "module": "main", "correlation_id": "61d8de50-4e21-46e6-94f3-f3725e773ed4"}
+{"timestamp": "2026-02-21T14:24:19.795521+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/books/ Status: 200 Duration: 0.0016s", "module": "main", "correlation_id": "61d8de50-4e21-46e6-94f3-f3725e773ed4"}
+{"timestamp": "2026-02-21T14:24:19.796640+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "7aa2f3e5-6be3-45bc-bda4-3baf893f70ba"}
+{"timestamp": "2026-02-21T14:24:19.832903+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0362s", "module": "main", "correlation_id": "7aa2f3e5-6be3-45bc-bda4-3baf893f70ba"}
+ ✓ Compiled /members/page in 507ms (1175 modules)
+{"timestamp": "2026-02-21T14:24:52.635021+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/", "module": "main", "correlation_id": "5aa39231-e2e8-4508-b0e2-10334a6fb1b3"}
+{"timestamp": "2026-02-21T14:24:52.636296+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/ Status: 200 Duration: 0.0027s", "module": "main", "correlation_id": "5aa39231-e2e8-4508-b0e2-10334a6fb1b3"}
+{"timestamp": "2026-02-21T14:24:52.638067+00:00", "level": "INFO", "message": "Started GET /api/v1/members/", "module": "main", "correlation_id": "702dbc4d-e540-431d-9a27-3ed98206ef1c"}
+{"timestamp": "2026-02-21T14:24:52.657407+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/ Status: 200 Duration: 0.0194s", "module": "main", "correlation_id": "702dbc4d-e540-431d-9a27-3ed98206ef1c"}
+ ✓ Compiled /members/[id]/page in 915ms (1715 modules)
+{"timestamp": "2026-02-21T14:25:11.876760+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "a615ff94-0ef9-4c15-a446-e50c55d9f006"}
+{"timestamp": "2026-02-21T14:25:11.881307+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "847f01a4-b833-4749-b2c4-dcc44f0e18b6"}
+{"timestamp": "2026-02-21T14:25:11.882110+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "b6b8566e-d22b-4e62-a192-8dcbad5d5d4b"}
+{"timestamp": "2026-02-21T14:25:11.882297+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0077s", "module": "main", "correlation_id": "a615ff94-0ef9-4c15-a446-e50c55d9f006"}
+{"timestamp": "2026-02-21T14:25:11.884155+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "f9bb874e-728c-4d2f-a6a0-89e422fb8d00"}
+{"timestamp": "2026-02-21T14:25:11.886902+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0048s", "module": "main", "correlation_id": "847f01a4-b833-4749-b2c4-dcc44f0e18b6"}
+{"timestamp": "2026-02-21T14:25:11.887583+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "5fe0faeb-d132-410f-bede-169c14ba0cb4"}
+{"timestamp": "2026-02-21T14:25:11.888522+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0062s", "module": "main", "correlation_id": "b6b8566e-d22b-4e62-a192-8dcbad5d5d4b"}
+{"timestamp": "2026-02-21T14:25:11.890180+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "e7fddf00-2e11-4437-b850-77283ac52db2"}
+{"timestamp": "2026-02-21T14:25:11.891192+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0070s", "module": "main", "correlation_id": "f9bb874e-728c-4d2f-a6a0-89e422fb8d00"}
+{"timestamp": "2026-02-21T14:25:11.891499+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "8a6abff7-f775-4a6c-b597-ff4164b01f69"}
+{"timestamp": "2026-02-21T14:25:11.892254+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0047s", "module": "main", "correlation_id": "5fe0faeb-d132-410f-bede-169c14ba0cb4"}
+{"timestamp": "2026-02-21T14:25:11.896894+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "6d780c0d-5f20-4fe7-a1d8-9f84aa0b3b30"}
+{"timestamp": "2026-02-21T14:25:11.897889+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0077s", "module": "main", "correlation_id": "e7fddf00-2e11-4437-b850-77283ac52db2"}
+{"timestamp": "2026-02-21T14:25:11.898790+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "82a0457a-896e-4270-8756-87cc3ca1e575"}
+{"timestamp": "2026-02-21T14:25:12.022769+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.1312s", "module": "main", "correlation_id": "8a6abff7-f775-4a6c-b597-ff4164b01f69"}
+{"timestamp": "2026-02-21T14:25:12.024283+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "fab42c9b-3c24-4e1d-b984-6a092450998b"}
+{"timestamp": "2026-02-21T14:25:12.037229+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0128s", "module": "main", "correlation_id": "fab42c9b-3c24-4e1d-b984-6a092450998b"}
+{"timestamp": "2026-02-21T14:25:12.134068+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.2352s", "module": "main", "correlation_id": "82a0457a-896e-4270-8756-87cc3ca1e575"}
+{"timestamp": "2026-02-21T14:25:12.137439+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "62802d9c-fc7b-48dc-a410-3f1defb06dd4"}
+{"timestamp": "2026-02-21T14:25:12.145216+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0078s", "module": "main", "correlation_id": "62802d9c-fc7b-48dc-a410-3f1defb06dd4"}
+{"timestamp": "2026-02-21T14:25:12.159422+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.2625s", "module": "main", "correlation_id": "6d780c0d-5f20-4fe7-a1d8-9f84aa0b3b30"}
+{"timestamp": "2026-02-21T14:25:12.160872+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "abb307c7-6b6f-4c6e-a6dc-e109d21fb6f2"}
+{"timestamp": "2026-02-21T14:25:12.162015+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "a4496757-1c9a-45a6-b04b-a634aa3f7091"}
+{"timestamp": "2026-02-21T14:25:12.163551+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0015s", "module": "main", "correlation_id": "a4496757-1c9a-45a6-b04b-a634aa3f7091"}
+{"timestamp": "2026-02-21T14:25:12.165944+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "d573b82d-2f4a-4481-aa0c-67f105b1488e"}
+{"timestamp": "2026-02-21T14:25:12.186725+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0207s", "module": "main", "correlation_id": "d573b82d-2f4a-4481-aa0c-67f105b1488e"}
+{"timestamp": "2026-02-21T14:25:12.189714+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0288s", "module": "main", "correlation_id": "abb307c7-6b6f-4c6e-a6dc-e109d21fb6f2"}
+{"timestamp": "2026-02-21T14:25:12.234747+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "1d7f11e9-9ab0-4e31-9349-76874301a1b7"}
+{"timestamp": "2026-02-21T14:25:12.257061+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0222s", "module": "main", "correlation_id": "1d7f11e9-9ab0-4e31-9349-76874301a1b7"}
+{"timestamp": "2026-02-21T14:25:12.258905+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "43586d95-4cf8-47f1-9669-7b96cdcaf34e"}
+{"timestamp": "2026-02-21T14:25:12.268687+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0098s", "module": "main", "correlation_id": "43586d95-4cf8-47f1-9669-7b96cdcaf34e"}
+{"timestamp": "2026-02-21T14:25:19.071626+00:00", "level": "INFO", "message": "Started GET /api/v1/members/", "module": "main", "correlation_id": "889d6c50-1e10-4183-a995-961f07a97948"}
+{"timestamp": "2026-02-21T14:25:19.094422+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/ Status: 200 Duration: 0.0228s", "module": "main", "correlation_id": "889d6c50-1e10-4183-a995-961f07a97948"}
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /dashboard/page in 1410ms (1720 modules)
+ ✓ Compiled (1827 modules)
+{"timestamp": "2026-02-21T14:25:20.706660+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/analytics/summary", "module": "main", "correlation_id": "7be97ec7-ab8c-4a4e-bc72-854c62693269"}
+{"timestamp": "2026-02-21T14:25:20.707015+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/analytics/summary Status: 200 Duration: 0.0004s", "module": "main", "correlation_id": "7be97ec7-ab8c-4a4e-bc72-854c62693269"}
+{"timestamp": "2026-02-21T14:25:20.708327+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "44df3d1d-5708-4b0b-b903-d9b10ef05cdd"}
+{"timestamp": "2026-02-21T14:25:20.745205+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.0368s", "module": "main", "correlation_id": "44df3d1d-5708-4b0b-b903-d9b10ef05cdd"}
+{"timestamp": "2026-02-21T14:25:21.061093+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "7c9ce539-e80b-4d29-8da6-a17e05e9eedb"}
+{"timestamp": "2026-02-21T14:25:21.069138+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0086s", "module": "main", "correlation_id": "7c9ce539-e80b-4d29-8da6-a17e05e9eedb"}
+ ✓ Compiled /borrows/page in 241ms (1833 modules)
+{"timestamp": "2026-02-21T14:25:23.661122+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/borrows/", "module": "main", "correlation_id": "487c5d23-636b-4cf6-bc76-67a7b6a84d05"}
+{"timestamp": "2026-02-21T14:25:23.661494+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/borrows/ Status: 200 Duration: 0.0004s", "module": "main", "correlation_id": "487c5d23-636b-4cf6-bc76-67a7b6a84d05"}
+{"timestamp": "2026-02-21T14:25:23.662699+00:00", "level": "INFO", "message": "Started GET /api/v1/borrows/", "module": "main", "correlation_id": "8320648b-f1ad-4a1a-bffc-cb99fde80a42"}
+{"timestamp": "2026-02-21T14:25:23.674802+00:00", "level": "INFO", "message": "Completed GET /api/v1/borrows/ Status: 200 Duration: 0.0121s", "module": "main", "correlation_id": "8320648b-f1ad-4a1a-bffc-cb99fde80a42"}
+{"timestamp": "2026-02-21T14:25:25.167771+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "ec700deb-27d7-4e81-8f94-35698b6dfe89"}
+{"timestamp": "2026-02-21T14:25:25.187624+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.0200s", "module": "main", "correlation_id": "ec700deb-27d7-4e81-8f94-35698b6dfe89"}
+{"timestamp": "2026-02-21T14:25:42.775493+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/borrows/0a723f9e-c57a-46da-9968-316245549a06/return/", "module": "main", "correlation_id": "3d7effe5-d434-46ee-8008-2d0f7136a551"}
+{"timestamp": "2026-02-21T14:25:42.776424+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/borrows/0a723f9e-c57a-46da-9968-316245549a06/return/ Status: 200 Duration: 0.0009s", "module": "main", "correlation_id": "3d7effe5-d434-46ee-8008-2d0f7136a551"}
+{"timestamp": "2026-02-21T14:25:42.779425+00:00", "level": "INFO", "message": "Started POST /api/v1/borrows/0a723f9e-c57a-46da-9968-316245549a06/return/", "module": "main", "correlation_id": "4fecaf97-b705-4184-984e-b0325bcb46f3"}
+{"timestamp": "2026-02-21T14:25:42.805908+00:00", "level": "INFO", "message": "Completed POST /api/v1/borrows/0a723f9e-c57a-46da-9968-316245549a06/return/ Status: 200 Duration: 0.0265s", "module": "main", "correlation_id": "4fecaf97-b705-4184-984e-b0325bcb46f3"}
+{"timestamp": "2026-02-21T14:25:42.823493+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "12b0ecb7-54fe-43d1-8054-0fc803994aa3"}
+{"timestamp": "2026-02-21T14:25:42.824539+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "486002f3-9b07-40e9-9e51-3d08a1339324"}
+{"timestamp": "2026-02-21T14:25:42.828283+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "fadff091-e673-462f-85a7-845c5b566231"}
+{"timestamp": "2026-02-21T14:25:42.839267+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0158s", "module": "main", "correlation_id": "12b0ecb7-54fe-43d1-8054-0fc803994aa3"}
+{"timestamp": "2026-02-21T14:25:42.839916+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0117s", "module": "main", "correlation_id": "fadff091-e673-462f-85a7-845c5b566231"}
+{"timestamp": "2026-02-21T14:25:42.840493+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0160s", "module": "main", "correlation_id": "486002f3-9b07-40e9-9e51-3d08a1339324"}
+{"timestamp": "2026-02-21T14:25:42.845340+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "5735e84b-1cea-4b9c-bd2c-667dc4479c31"}
+{"timestamp": "2026-02-21T14:25:42.850388+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0050s", "module": "main", "correlation_id": "5735e84b-1cea-4b9c-bd2c-667dc4479c31"}
+{"timestamp": "2026-02-21T14:25:42.859418+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "36437975-9006-4aba-9bd1-3bb967c64b08"}
+{"timestamp": "2026-02-21T14:25:42.865552+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0064s", "module": "main", "correlation_id": "36437975-9006-4aba-9bd1-3bb967c64b08"}
+{"timestamp": "2026-02-21T14:25:53.882449+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "d98a9d81-5a65-40b0-b21e-4196efe9552e"}
+{"timestamp": "2026-02-21T14:25:53.898228+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0156s", "module": "main", "correlation_id": "d98a9d81-5a65-40b0-b21e-4196efe9552e"}
+{"timestamp": "2026-02-21T14:26:13.128547+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/", "module": "main", "correlation_id": "15b43d03-79b3-429d-8c35-b192d91e78ff"}
+{"timestamp": "2026-02-21T14:26:13.130307+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/ Status: 200 Duration: 0.0024s", "module": "main", "correlation_id": "15b43d03-79b3-429d-8c35-b192d91e78ff"}
+{"timestamp": "2026-02-21T14:26:13.131939+00:00", "level": "INFO", "message": "Started GET /api/v1/members/", "module": "main", "correlation_id": "7c8c9983-f858-400e-a926-e5a819a28893"}
+{"timestamp": "2026-02-21T14:26:13.137022+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/ Status: 200 Duration: 0.0051s", "module": "main", "correlation_id": "7c8c9983-f858-400e-a926-e5a819a28893"}
+{"timestamp": "2026-02-21T14:26:36.499418+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/borrows/", "module": "main", "correlation_id": "c475119b-c396-4679-8e92-bc083a467c6c"}
+{"timestamp": "2026-02-21T14:26:36.500234+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/borrows/ Status: 200 Duration: 0.0008s", "module": "main", "correlation_id": "c475119b-c396-4679-8e92-bc083a467c6c"}
+{"timestamp": "2026-02-21T14:26:36.501395+00:00", "level": "INFO", "message": "Started POST /api/v1/borrows/", "module": "main", "correlation_id": "704b2023-365b-4600-b004-403e157f083e"}
+{"timestamp": "2026-02-21T14:26:36.544958+00:00", "level": "INFO", "message": "Completed POST /api/v1/borrows/ Status: 201 Duration: 0.0435s", "module": "main", "correlation_id": "704b2023-365b-4600-b004-403e157f083e"}
+{"timestamp": "2026-02-21T14:26:36.559363+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "c65a36b6-f141-45a4-af8c-1a4d9404bb61"}
+{"timestamp": "2026-02-21T14:26:36.570016+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0106s", "module": "main", "correlation_id": "c65a36b6-f141-45a4-af8c-1a4d9404bb61"}
+{"timestamp": "2026-02-21T14:26:36.623692+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "a1d1aebc-0141-4b03-9a5c-abc62f286142"}
+{"timestamp": "2026-02-21T14:26:36.624633+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "24db09f6-5f78-4419-8600-077dd12492cb"}
+{"timestamp": "2026-02-21T14:26:36.624980+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "8f198f8c-de32-4983-8813-4812e4460ba5"}
+{"timestamp": "2026-02-21T14:26:36.633605+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0086s", "module": "main", "correlation_id": "8f198f8c-de32-4983-8813-4812e4460ba5"}
+{"timestamp": "2026-02-21T14:26:36.634795+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "3267bfcf-22e7-4ba5-8dd3-8fedd7ed0ec3"}
+{"timestamp": "2026-02-21T14:26:36.635899+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0122s", "module": "main", "correlation_id": "a1d1aebc-0141-4b03-9a5c-abc62f286142"}
+{"timestamp": "2026-02-21T14:26:36.637064+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "5aa30c6b-f730-43a6-abc4-4d18acd43875"}
+{"timestamp": "2026-02-21T14:26:36.642347+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0075s", "module": "main", "correlation_id": "3267bfcf-22e7-4ba5-8dd3-8fedd7ed0ec3"}
+{"timestamp": "2026-02-21T14:26:36.650996+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0263s", "module": "main", "correlation_id": "24db09f6-5f78-4419-8600-077dd12492cb"}
+{"timestamp": "2026-02-21T14:26:36.651995+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "d752fca5-5cf0-42e4-a724-9483642ddd57"}
+{"timestamp": "2026-02-21T14:26:36.656010+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "a2476f36-7e5e-49fc-bbce-0cf6005fde3d"}
+{"timestamp": "2026-02-21T14:26:36.662140+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0101s", "module": "main", "correlation_id": "d752fca5-5cf0-42e4-a724-9483642ddd57"}
+{"timestamp": "2026-02-21T14:26:36.662313+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0064s", "module": "main", "correlation_id": "a2476f36-7e5e-49fc-bbce-0cf6005fde3d"}
+{"timestamp": "2026-02-21T14:26:36.700263+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0632s", "module": "main", "correlation_id": "5aa30c6b-f730-43a6-abc4-4d18acd43875"}
+{"timestamp": "2026-02-21T14:26:36.761099+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "2861b86d-a331-417c-80d4-02edd8ccde1e"}
+{"timestamp": "2026-02-21T14:26:36.772564+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0114s", "module": "main", "correlation_id": "2861b86d-a331-417c-80d4-02edd8ccde1e"}
+{"timestamp": "2026-02-21T14:26:36.775156+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "7c2968e8-5d7d-45c9-8efa-8238a7b7fa9a"}
+{"timestamp": "2026-02-21T14:26:36.782004+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0068s", "module": "main", "correlation_id": "7c2968e8-5d7d-45c9-8efa-8238a7b7fa9a"}
+{"timestamp": "2026-02-21T14:26:48.801413+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "2195146f-7708-4139-b8c8-ca164925c783"}
+{"timestamp": "2026-02-21T14:26:48.802579+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "8dc6812b-a455-46cf-a948-1dbb039ff907"}
+{"timestamp": "2026-02-21T14:26:48.803072+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "5317fc8a-24c1-4b7a-bbd9-9410b97c4e13"}
+{"timestamp": "2026-02-21T14:26:48.820802+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0177s", "module": "main", "correlation_id": "5317fc8a-24c1-4b7a-bbd9-9410b97c4e13"}
+{"timestamp": "2026-02-21T14:26:48.821015+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0197s", "module": "main", "correlation_id": "2195146f-7708-4139-b8c8-ca164925c783"}
+{"timestamp": "2026-02-21T14:26:48.822695+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426", "module": "main", "correlation_id": "5703f27a-3576-44b3-9208-c66b230bac2e"}
+{"timestamp": "2026-02-21T14:26:48.824371+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "23ebacde-1573-4376-a13e-b40731681609"}
+{"timestamp": "2026-02-21T14:26:48.841903+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426 Status: 200 Duration: 0.0193s", "module": "main", "correlation_id": "5703f27a-3576-44b3-9208-c66b230bac2e"}
+{"timestamp": "2026-02-21T14:26:48.843155+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0188s", "module": "main", "correlation_id": "23ebacde-1573-4376-a13e-b40731681609"}
+{"timestamp": "2026-02-21T14:26:48.853838+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0512s", "module": "main", "correlation_id": "8dc6812b-a455-46cf-a948-1dbb039ff907"}
+{"timestamp": "2026-02-21T14:26:48.857956+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics", "module": "main", "correlation_id": "a9fc8884-e8ff-4cb7-84ee-a502aa72ae7b"}
+{"timestamp": "2026-02-21T14:26:48.873200+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/analytics Status: 200 Duration: 0.0154s", "module": "main", "correlation_id": "a9fc8884-e8ff-4cb7-84ee-a502aa72ae7b"}
+{"timestamp": "2026-02-21T14:26:48.902081+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "6b0e6a4c-8822-4cb7-9c2c-eb5f2ec02bc8"}
+{"timestamp": "2026-02-21T14:26:48.907288+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0052s", "module": "main", "correlation_id": "6b0e6a4c-8822-4cb7-9c2c-eb5f2ec02bc8"}
+{"timestamp": "2026-02-21T14:26:48.908491+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "d64d5ff0-33d4-4b2a-9dd8-b4ceb82c1ab9"}
+{"timestamp": "2026-02-21T14:26:48.912562+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0041s", "module": "main", "correlation_id": "d64d5ff0-33d4-4b2a-9dd8-b4ceb82c1ab9"}
+{"timestamp": "2026-02-21T14:26:48.957808+00:00", "level": "INFO", "message": "Started GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history", "module": "main", "correlation_id": "4b1ede36-f458-44ae-99e1-f6588b3b3ee5"}
+{"timestamp": "2026-02-21T14:26:48.967418+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/e418ee53-2817-49a7-802f-bda9d34ee426/history Status: 200 Duration: 0.0096s", "module": "main", "correlation_id": "4b1ede36-f458-44ae-99e1-f6588b3b3ee5"}
+{"timestamp": "2026-02-21T14:27:01.635642+00:00", "level": "INFO", "message": "Started GET /api/v1/borrows/", "module": "main", "correlation_id": "c288a42f-28f5-473a-9542-6e2ab9ea378e"}
+{"timestamp": "2026-02-21T14:27:01.645899+00:00", "level": "INFO", "message": "Completed GET /api/v1/borrows/ Status: 200 Duration: 0.0102s", "module": "main", "correlation_id": "c288a42f-28f5-473a-9542-6e2ab9ea378e"}
+{"timestamp": "2026-02-21T14:27:53.303497+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/borrows/", "module": "main", "correlation_id": "ba6c6976-c283-4ef7-a483-496efa1d66fe"}
+{"timestamp": "2026-02-21T14:27:53.304986+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/borrows/ Status: 200 Duration: 0.0019s", "module": "main", "correlation_id": "ba6c6976-c283-4ef7-a483-496efa1d66fe"}
+{"timestamp": "2026-02-21T14:27:53.306188+00:00", "level": "INFO", "message": "Started GET /api/v1/borrows/", "module": "main", "correlation_id": "f87522f3-d64a-4332-b570-37b3d9bd3c07"}
+{"timestamp": "2026-02-21T14:27:53.354700+00:00", "level": "INFO", "message": "Completed GET /api/v1/borrows/ Status: 200 Duration: 0.0485s", "module": "main", "correlation_id": "f87522f3-d64a-4332-b570-37b3d9bd3c07"}
+{"timestamp": "2026-02-21T14:28:18.321025+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "047371b0-51c6-441d-9b52-1d9a2ef3bcc5"}
+{"timestamp": "2026-02-21T14:28:18.373617+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.0580s", "module": "main", "correlation_id": "047371b0-51c6-441d-9b52-1d9a2ef3bcc5"}
+{"timestamp": "2026-02-21T14:28:34.244229+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "2b1846f8-b6c6-4a45-a907-b98468bca5e1"}
+{"timestamp": "2026-02-21T14:28:34.275358+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.0313s", "module": "main", "correlation_id": "2b1846f8-b6c6-4a45-a907-b98468bca5e1"}
+{"timestamp": "2026-02-21T14:28:52.750980+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "c2217a3a-6b75-428d-aee2-1d9da29af81a"}
+{"timestamp": "2026-02-21T14:28:52.787499+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.0366s", "module": "main", "correlation_id": "c2217a3a-6b75-428d-aee2-1d9da29af81a"}
+{"timestamp": "2026-02-21T14:29:41.285991+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "1829dbce-d34b-4ad6-bcf6-8806b2f3b42b"}
+{"timestamp": "2026-02-21T14:29:41.323209+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0377s", "module": "main", "correlation_id": "1829dbce-d34b-4ad6-bcf6-8806b2f3b42b"}
+WARNING:  WatchFiles detected changes in 'app/seeds/scenarios.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [20220]
+INFO:     Started server process [21860]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+{"timestamp": "2026-02-21T14:30:23.422921+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/books/", "module": "main", "correlation_id": "a6cd15f2-24dd-4969-9c3c-d3a3001793aa"}
+{"timestamp": "2026-02-21T14:30:23.428233+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/books/ Status: 200 Duration: 0.0067s", "module": "main", "correlation_id": "a6cd15f2-24dd-4969-9c3c-d3a3001793aa"}
+{"timestamp": "2026-02-21T14:30:23.429370+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "7e2ea9d7-6794-4f46-9504-dbbb6c70a3c7"}
+{"timestamp": "2026-02-21T14:30:23.512311+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0829s", "module": "main", "correlation_id": "7e2ea9d7-6794-4f46-9504-dbbb6c70a3c7"}
+{"timestamp": "2026-02-21T14:30:37.975747+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/books/", "module": "main", "correlation_id": "5e6188bb-3a20-451b-8001-f6f662f9bf56"}
+{"timestamp": "2026-02-21T14:30:37.976777+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/books/ Status: 200 Duration: 0.0011s", "module": "main", "correlation_id": "5e6188bb-3a20-451b-8001-f6f662f9bf56"}
+{"timestamp": "2026-02-21T14:30:37.978084+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "d429defb-9b08-4a34-8655-372822b1d318"}
+{"timestamp": "2026-02-21T14:30:37.983595+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0055s", "module": "main", "correlation_id": "d429defb-9b08-4a34-8655-372822b1d318"}
+WARNING:  WatchFiles detected changes in 'app/seeds/scenarios.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21860]
+INFO:     Started server process [22319]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22319]
+INFO:     Started server process [22459]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22459]
+INFO:     Started server process [22495]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'test_seeder_parallel.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22495]
+INFO:     Started server process [22531]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22531]
+INFO:     Started server process [22791]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'test_seeder_parallel.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22791]
+INFO:     Started server process [22817]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'test_seeder_parallel.py', 'tests/smoke/test_seeder_parallel.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22817]
+INFO:     Started server process [22938]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [22938]
+INFO:     Started server process [24942]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'benchmark_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24942]
+WARNING:  WatchFiles detected changes in 'benchmark_seeder.py'. Reloading...
+INFO:     Started server process [25091]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+{"timestamp": "2026-02-21T14:38:26.078370+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/books/", "module": "main", "correlation_id": "ab0ae34e-c3a6-4d6c-a3ec-a9823d10eef0"}
+{"timestamp": "2026-02-21T14:38:26.079393+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/books/ Status: 200 Duration: 0.0012s", "module": "main", "correlation_id": "ab0ae34e-c3a6-4d6c-a3ec-a9823d10eef0"}
+{"timestamp": "2026-02-21T14:38:26.080586+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "779aca5e-498b-4eb0-b088-ea214ca58c3f"}
+{"timestamp": "2026-02-21T14:38:26.141667+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0611s", "module": "main", "correlation_id": "779aca5e-498b-4eb0-b088-ea214ca58c3f"}
+{"timestamp": "2026-02-21T14:38:27.804763+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "068792c0-dd93-4ec9-9f7f-83240354910b"}
+{"timestamp": "2026-02-21T14:38:27.810727+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0060s", "module": "main", "correlation_id": "068792c0-dd93-4ec9-9f7f-83240354910b"}
+WARNING:  WatchFiles detected changes in 'benchmark_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25091]
+INFO:     Started server process [25793]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+{"timestamp": "2026-02-21T14:39:14.459357+00:00", "level": "INFO", "message": "Started GET /api/v1/books/", "module": "main", "correlation_id": "c2b7e4c7-d190-480f-b634-a3506f00cd9a"}
+{"timestamp": "2026-02-21T14:39:14.515625+00:00", "level": "INFO", "message": "Completed GET /api/v1/books/ Status: 200 Duration: 0.0563s", "module": "main", "correlation_id": "c2b7e4c7-d190-480f-b634-a3506f00cd9a"}
+{"timestamp": "2026-02-21T14:39:16.209460+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/analytics/summary", "module": "main", "correlation_id": "19fad4d9-0259-4c1d-b788-9684f2c74833"}
+{"timestamp": "2026-02-21T14:39:16.210092+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/analytics/summary Status: 200 Duration: 0.0006s", "module": "main", "correlation_id": "19fad4d9-0259-4c1d-b788-9684f2c74833"}
+{"timestamp": "2026-02-21T14:39:16.212273+00:00", "level": "INFO", "message": "Started GET /api/v1/analytics/summary", "module": "main", "correlation_id": "4484bd36-8dd4-40e4-becd-6416bda3198e"}
+{"timestamp": "2026-02-21T14:39:16.410063+00:00", "level": "INFO", "message": "Completed GET /api/v1/analytics/summary Status: 200 Duration: 0.1980s", "module": "main", "correlation_id": "4484bd36-8dd4-40e4-becd-6416bda3198e"}
+{"timestamp": "2026-02-21T14:39:17.837799+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/members/", "module": "main", "correlation_id": "18cae04e-68a5-401d-a0cf-7fb390e0ed2a"}
+{"timestamp": "2026-02-21T14:39:17.838223+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/members/ Status: 200 Duration: 0.0005s", "module": "main", "correlation_id": "18cae04e-68a5-401d-a0cf-7fb390e0ed2a"}
+{"timestamp": "2026-02-21T14:39:17.838957+00:00", "level": "INFO", "message": "Started GET /api/v1/members/", "module": "main", "correlation_id": "b26ae4bf-9a76-4141-8750-d705b4fa17a9"}
+{"timestamp": "2026-02-21T14:39:17.848012+00:00", "level": "INFO", "message": "Completed GET /api/v1/members/ Status: 200 Duration: 0.0090s", "module": "main", "correlation_id": "b26ae4bf-9a76-4141-8750-d705b4fa17a9"}
+{"timestamp": "2026-02-21T14:39:19.077168+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/borrows/", "module": "main", "correlation_id": "9e4347ba-3192-4932-a564-e09ac044c32e"}
+{"timestamp": "2026-02-21T14:39:19.077446+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/borrows/ Status: 200 Duration: 0.0003s", "module": "main", "correlation_id": "9e4347ba-3192-4932-a564-e09ac044c32e"}
+{"timestamp": "2026-02-21T14:39:19.078943+00:00", "level": "INFO", "message": "Started GET /api/v1/borrows/", "module": "main", "correlation_id": "cf10e31a-adf0-49f5-a189-eaf9386faf23"}
+{"timestamp": "2026-02-21T14:39:19.120260+00:00", "level": "INFO", "message": "Completed GET /api/v1/borrows/ Status: 200 Duration: 0.0415s", "module": "main", "correlation_id": "cf10e31a-adf0-49f5-a189-eaf9386faf23"}
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [25793]
+INFO:     Started server process [26050]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'benchmark_ultra.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [26050]
+INFO:     Started server process [26098]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [26098]
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Started server process [26524]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [26528]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [26528]
+INFO:     Started server process [27397]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27397]
+INFO:     Started server process [27461]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [27461]
+WARNING:  WatchFiles detected changes in 'benchmark_ultra.py', 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Started server process [28739]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/seeds/high_scale_seeder.py'. Reloading...
+INFO:     Started server process [28744]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Started server process [28756]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.

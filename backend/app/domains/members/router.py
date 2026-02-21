@@ -14,27 +14,31 @@ from app.domains.members.schemas import (
     MemberBorrowHistoryResponse,
     MemberAnalyticsResponse,
 )
+from app.core.security import rate_limit_dependency
 
 router = APIRouter()
 
 
-@router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency)])
 def create_member(member_in: MemberCreate, db: Session = Depends(get_db)):
     service = MemberService(db)
     return service.create_member(member_in)
 
 
-@router.get("/", response_model=PaginatedResponse[MemberResponse])
+@router.get("/", response_model=PaginatedResponse[MemberResponse], dependencies=[Depends(rate_limit_dependency)])
 def list_members(
     offset: int = 0,
     limit: int = 20,
     q: Optional[str] = None,
     sort: str = "-created_at",
+    cursor: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     service = MemberService(db)
     try:
-        return service.list_members(offset=offset, limit=limit, query=q, sort=sort)
+        return service.list_members(
+            offset=offset, limit=limit, query=q, sort=sort, cursor=cursor
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -103,13 +107,14 @@ def list_borrows_by_member(
     offset: int = 0,
     limit: int = 20,
     sort: str = "-borrowed_at",
+    cursor: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """List borrow history for a specific member."""
     service = BorrowService(db)
     try:
         return service.list_borrows(
-            member_id=member_id, offset=offset, limit=limit, sort=sort
+            member_id=member_id, offset=offset, limit=limit, sort=sort, cursor=cursor
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

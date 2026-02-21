@@ -1,28 +1,28 @@
 import logging
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from contextvars import ContextVar
 
 from typing import Optional
 
-# Context var to store request ID
-request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+# Context var to store correlation ID
+correlation_id_ctx: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
 
 
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         log_obj = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "message": record.getMessage(),
             "module": record.module,
         }
 
-        # Add Request ID if available
-        req_id = request_id_ctx.get()
-        if req_id:
-            log_obj["request_id"] = req_id
+        # Add Correlation ID if available
+        corr_id = correlation_id_ctx.get()
+        if corr_id:
+            log_obj["correlation_id"] = corr_id
 
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
