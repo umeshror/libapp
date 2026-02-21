@@ -33,23 +33,18 @@ This repository is structured to reflect how such a system might evolve in a rea
   <img src="media/dashboard.png" width="60%">
 </p>
 <p align="center">
-  <img src="media/1.png" width="45%">
   <img src="media/2.png" width="45%">
-</p>
-
-<p align="center">
   <img src="media/3.png" width="45%">
+</p>
+
+<p align="center">
   <img src="media/4.png" width="45%">
-</p>
-
-<p align="center">
   <img src="media/5.png" width="45%">
-  <img src="media/6.png" width="45%">
 </p>
 
 <p align="center">
+  <img src="media/6.png" width="45%">
   <img src="media/7.png" width="45%">
-  <img src="media/8.png" width="45%">
 </p>
 
 
