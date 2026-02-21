@@ -46,8 +46,15 @@ def clear_data(db: SessionLocal):
         raise e
 
 
-def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False):
+def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False, force: bool = False):
     logger.info(f"Starting seeding for scenario: {scenario_name}")
+
+    if not force:
+        # Environment Check
+        env = os.getenv("ENVIRONMENT", "development")
+        if env == "production":
+            logger.error("Cannot run seeding in production environment!")
+            sys.exit(1)
 
     if scenario_name not in SCENARIOS:
         logger.error(

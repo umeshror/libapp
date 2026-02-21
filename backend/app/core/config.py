@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # Business Logic Config
     MAX_ACTIVE_BORROWS: int = 5
     DEFAULT_BORROW_DURATION_DAYS: int = 14
+    SEEDING_SECRET: str = "change-me-in-production"
 
     @property
     def DATABASE_URL(self) -> str:

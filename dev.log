@@ -344,3 +344,6 @@ INFO:     Application startup complete.
 INFO:     Started server process [28756]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+{"timestamp": "2026-02-21T18:33:58.679303+00:00", "level": "INFO", "message": "Started OPTIONS /api/v1/analytics/summary", "module": "main", "correlation_id": "38f7d779-ee18-41c3-97c8-0a0fb863ccfb"}
+{"timestamp": "2026-02-21T18:33:58.684382+00:00", "level": "INFO", "message": "Completed OPTIONS /api/v1/analytics/summary Status: 200 Duration: 0.0064s", "module": "main", "correlation_id": "38f7d779-ee18-41c3-97c8-0a0fb863ccfb"}
+make: *** [dev] Hangup: 1
