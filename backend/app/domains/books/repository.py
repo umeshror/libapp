@@ -10,6 +10,7 @@ from app.domains.books.schemas import (
     BookCreate, BookUpdate, BookResponse,
     BorrowerInfo, BorrowHistoryItem, BookAnalytics,
 )
+from app.shared.pagination import encode_cursor, decode_cursor
 
 
 class BookRepository:
@@ -88,9 +89,9 @@ class BookRepository:
 
         # Keyset Pagination (Cursor Support)
         if cursor:
-            try:
-                # Expecting cursor in format "val:uuid"
-                cursor_val_str, cursor_id = cursor.split(":")
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cursor_val_str, cursor_id = decoded
                 
                 # Convert cursor_val to appropriate type based on sort_field
                 if sort_field == "created_at":
@@ -110,9 +111,6 @@ class BookRepository:
                         (sort_column > cursor_val) | 
                         ((sort_column == cursor_val) & (Book.id > UUID(cursor_id)))
                     )
-            except (ValueError, Exception):
-                # Fallback to offset if cursor is malformed
-                pass
 
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())
@@ -142,7 +140,7 @@ class BookRepository:
                 last_val_str = last_val.isoformat()
             else:
                 last_val_str = str(last_val)
-            next_cursor = f"{last_val_str}:{last_item.id}"
+            next_cursor = encode_cursor(last_val_str, str(last_item.id))
 
         return {
             "items": results,

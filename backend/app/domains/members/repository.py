@@ -7,6 +7,7 @@ from app.models.member import Member
 from app.models.borrow_record import BorrowRecord, BorrowStatus
 from app.models.book import Book
 from app.domains.members.schemas import MemberCreate, MemberResponse
+from app.shared.pagination import encode_cursor, decode_cursor
 
 
 class MemberRepository:
@@ -60,8 +61,9 @@ class MemberRepository:
 
         # Keyset Pagination
         if cursor:
-            try:
-                cursor_val_str, cursor_id = cursor.split(":")
+            decoded = decode_cursor(cursor)
+            if decoded:
+                cursor_val_str, cursor_id = decoded
                 if sort_field == "created_at":
                     cursor_val = datetime.fromisoformat(cursor_val_str)
                 else:
@@ -77,8 +79,6 @@ class MemberRepository:
                         (sort_column > cursor_val) | 
                         ((sort_column == cursor_val) & (Member.id > UUID(cursor_id)))
                     )
-            except:
-                pass
 
         if sort_order == "desc":
             stmt = stmt.order_by(sort_column.desc())
@@ -101,7 +101,7 @@ class MemberRepository:
             last_item = results[-1]
             last_val = getattr(last_item, sort_field)
             last_val_str = last_val.isoformat() if isinstance(last_val, datetime) else str(last_val)
-            next_cursor = f"{last_val_str}:{last_item.id}"
+            next_cursor = encode_cursor(last_val_str, str(last_item.id))
 
         return {
             "items": results,
