@@ -383,7 +383,7 @@ GET /api/v1/books?limit=20&cursor=<token>&sort_by=title&order=asc&q=python
     "total": 200000,
     "limit": 20,
     "has_more": true,
-    "next_cursor": "python guide:a1b2c3d4-..."
+    "next_cursor": "UHl0aG9uIEd1aWRlOmExYjJjM2Q0L..."
   }
 }
 ```
@@ -439,7 +439,7 @@ Standard offset pagination (`LIMIT 20 OFFSET 100000`) is **O(N)** because Postgr
 Instead, every list endpoint uses a cursor encoding the last-seen sort value + UUID:
 
 ```python
-# Example: cursor = "The Python Cookbook:a1b2c3d4-..."
+# Example: cursor = "UHl0aG9uIEd1aWRlOmExYjJjM2Q0L..."
 if sort_order == "asc":
     stmt = stmt.where(
         (sort_column > cursor_val) |
