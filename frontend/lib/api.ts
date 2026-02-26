@@ -9,7 +9,8 @@ import {
     BookDetailResponse,
     MemberCoreDetails,
     MemberBorrowHistoryResponse,
-    MemberAnalyticsResponse
+    MemberAnalyticsResponse,
+    BulkOperationResponse
 } from '../types';
 
 /** Fetch wrapper with JSON headers and error extraction from API responses. */
@@ -23,9 +24,40 @@ export async function fetchAPI(endpoint: string, options: RequestInit = {}) {
     });
 
     if (!res.ok) {
-        const error = await res.json().catch(() => ({ detail: 'Network error' }));
-        throw new Error(error.detail || `Error ${res.status}`);
+        let errorMsg = `API Error: ${res.status} ${res.statusText}`;
+        let errorCode = 'INTERNAL_ERROR';
+        let correlationId = 'unknown';
+
+        try {
+            const errorData = await res.json();
+            correlationId = errorData.correlation_id || 'unknown';
+            errorCode = errorData.error_code || 'LIBRARY_ERROR';
+
+            // Handle Standardized Validation errors
+            if (res.status === 422 && Array.isArray(errorData.validation_errors)) {
+                errorMsg = errorData.validation_errors
+                    .map((err: any) => `${err.loc[err.loc.length - 1]}: ${err.msg}`)
+                    .join(', ');
+            } else if (errorData.detail) {
+                errorMsg = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+            }
+        } catch (e) {
+            // Fallback for non-JSON or malformed responses
+        }
+
+        const finalError = new Error(errorMsg) as any;
+        finalError.code = errorCode;
+        finalError.correlationId = correlationId;
+
+        console.error(`[${errorCode}] ${errorMsg} (ID: ${correlationId})`);
+        throw finalError;
     }
+
+    // Handle 204 No Content
+    if (res.status === 204) {
+        return null;
+    }
+
     return res.json();
 }
 
@@ -34,6 +66,7 @@ function validParams(params: ListParams): URLSearchParams {
     const searchParams = new URLSearchParams();
     if (params.limit !== undefined) searchParams.set('limit', params.limit.toString());
     if (params.offset !== undefined) searchParams.set('offset', params.offset.toString());
+    if (params.cursor) searchParams.set('cursor', params.cursor);
     if (params.sort) searchParams.set('sort', params.sort);
     if (params.q) searchParams.set('q', params.q);
     return searchParams;
@@ -115,4 +148,71 @@ export async function returnBook(borrowId: string): Promise<BorrowRecord> {
     return fetchAPI(`/borrows/${borrowId}/return/`, {
         method: 'POST'
     });
+}
+
+export async function updateBook(id: string, data: Partial<Book>): Promise<Book> {
+    return fetchAPI(`/books/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+}
+
+export async function updateMember(id: string, data: Partial<Member>): Promise<Member> {
+    return fetchAPI(`/members/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    });
+}
+export async function archiveBook(id: string): Promise<void> {
+    return fetchAPI(`/books/${id}`, { method: 'DELETE' });
+}
+
+export async function restoreBook(id: string): Promise<Book> {
+    return fetchAPI(`/books/${id}/restore`, { method: 'POST' });
+}
+
+export async function archiveMember(id: string): Promise<void> {
+    return fetchAPI(`/members/${id}`, { method: 'DELETE' });
+}
+
+export async function restoreMember(id: string): Promise<Member> {
+    return fetchAPI(`/members/${id}/restore`, { method: 'POST' });
+}
+
+export async function exportBooksCSV(): Promise<Blob> {
+    const res = await fetch(`${API_URL}/books/export/csv`);
+    if (!res.ok) throw new Error('Failed to export books');
+    return res.blob();
+}
+
+export async function importBooksCSV(file: File): Promise<BulkOperationResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_URL}/books/import/csv`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!res.ok) throw new Error('Failed to import books');
+    return res.json();
+}
+
+export async function exportMembersCSV(): Promise<Blob> {
+    const res = await fetch(`${API_URL}/members/export/csv`);
+    if (!res.ok) throw new Error('Failed to export members');
+    return res.blob();
+}
+
+export async function importMembersCSV(file: File): Promise<BulkOperationResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_URL}/members/import/csv`, {
+        method: 'POST',
+        body: formData,
+    });
+
+    if (!res.ok) throw new Error('Failed to import members');
+    return res.json();
 }

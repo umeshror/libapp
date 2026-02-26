@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,8 +11,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "password"
     POSTGRES_DB: str = "library"
     POSTGRES_PORT: int = 5432
-    POSTGRES_URL: str | None = None
-
+    POSTGRES_URL: Optional[str] = None
     # Business Logic Config
     MAX_ACTIVE_BORROWS: int = 5
     DEFAULT_BORROW_DURATION_DAYS: int = 14

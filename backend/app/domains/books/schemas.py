@@ -3,17 +3,17 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # --- Core CRUD Schemas ---
 
 class BookBase(BaseModel):
-    title: str
-    author: str
-    isbn: str
-    total_copies: int = 1
-    available_copies: int = 1
+    title: str = Field(..., min_length=2, max_length=255)
+    author: str = Field(..., min_length=2, max_length=100)
+    isbn: str = Field(..., pattern=r"^[\d-]{10,17}$")
+    total_copies: int = Field(1, ge=1, le=1000)
+    available_copies: int = Field(1, ge=0)
 
 
 class BookCreate(BookBase):

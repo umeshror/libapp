@@ -13,6 +13,7 @@ import { useReturnBook } from '@/hooks/useReturnBook'
 import { toast } from 'sonner'
 import ConfirmationModal from '@/components/ConfirmationModal'
 import MemberSelectionModal from '@/components/MemberSelectionModal'
+import AuditHistory from '@/components/AuditHistory'
 import {
     ArrowLeft,
     Book as BookIcon,
@@ -44,6 +45,7 @@ export default function BookDetailPage() {
     const [confirmingBorrow, setConfirmingBorrow] = useState<{ memberId: string, memberName: string } | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [historyOffset, setHistoryOffset] = useState(0)
+    const [activeTab, setActiveTab] = useState<'borrows' | 'audit'>('borrows')
     const HISTORY_LIMIT = 5
 
     const fetchData = useCallback(async (offset: number) => {
@@ -295,67 +297,90 @@ export default function BookDetailPage() {
                     {/* Borrow History */}
                     <section className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-50 bg-gray-50/50 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                <History className="w-5 h-5 text-purple-600" />
-                                Borrow History
-                            </h2>
-                            <div className="flex items-center gap-2">
+                            <div className="flex gap-4">
                                 <button
-                                    onClick={() => handlePageChange(historyOffset - HISTORY_LIMIT)}
-                                    disabled={historyOffset === 0 || loading}
-                                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                                    onClick={() => setActiveTab('borrows')}
+                                    className={`text-xl font-bold flex items-center gap-2 transition-all ${activeTab === 'borrows' ? 'text-gray-900 border-b-2 border-indigo-600 pb-1' : 'text-gray-400 hover:text-gray-600'}`}
                                 >
-                                    <ChevronLeft className="w-4 h-4" />
+                                    <History className="w-5 h-5" />
+                                    Borrow History
                                 </button>
-                                <span className="text-xs font-bold text-gray-500 px-2">
-                                    {Math.floor(historyOffset / HISTORY_LIMIT) + 1}
-                                </span>
                                 <button
-                                    onClick={() => handlePageChange(historyOffset + HISTORY_LIMIT)}
-                                    disabled={!borrow_history.meta.has_more || loading}
-                                    className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                                    onClick={() => setActiveTab('audit')}
+                                    className={`text-xl font-bold flex items-center gap-2 transition-all ${activeTab === 'audit' ? 'text-gray-900 border-b-2 border-indigo-600 pb-1' : 'text-gray-400 hover:text-gray-600'}`}
                                 >
-                                    <ChevronRight className="w-4 h-4" />
+                                    <Clock className="w-5 h-5" />
+                                    Audit Logs
                                 </button>
                             </div>
-                        </div>
-                        <div className="overflow-x-auto">
-                            {borrow_history.data.length > 0 ? (
-                                <table className="w-full text-left">
-                                    <thead>
-                                        <tr className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                                            <th className="px-6 py-4">Member</th>
-                                            <th className="px-6 py-4">Timeline</th>
-                                            <th className="px-6 py-4 text-right">Duration</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-50 text-sm">
-                                        {borrow_history.data.map((item, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <Link href={`/members/${item.member_id}`} target="_blank" className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition-colors">
-                                                        {item.member_name}
-                                                    </Link>
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex flex-col text-xs space-y-0.5">
-                                                        <span className="text-gray-400">Borrowed: {new Date(item.borrowed_at).toLocaleDateString()}</span>
-                                                        <span className="text-emerald-500 font-medium">Returned: {new Date(item.returned_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4 text-right whitespace-nowrap">
-                                                    <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg font-mono text-xs font-bold">
-                                                        {item.duration_days} Days
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            ) : (
-                                <div className="p-12 text-center text-gray-500 italic">
-                                    No transaction history yet.
+                            {activeTab === 'borrows' && (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handlePageChange(historyOffset - HISTORY_LIMIT)}
+                                        disabled={historyOffset === 0 || loading}
+                                        className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <span className="text-xs font-bold text-gray-500 px-2">
+                                        {Math.floor(historyOffset / HISTORY_LIMIT) + 1}
+                                    </span>
+                                    <button
+                                        onClick={() => handlePageChange(historyOffset + HISTORY_LIMIT)}
+                                        disabled={!borrow_history.meta.has_more || loading}
+                                        className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-30 transition-all"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
                                 </div>
+                            )}
+                        </div>
+                        <div className="p-6">
+                            {activeTab === 'borrows' ? (
+                                <div className="overflow-x-auto -mx-6 -mb-6">
+                                    {borrow_history.data.length > 0 ? (
+                                        <table className="w-full text-left">
+                                            <thead>
+                                                <tr className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                                                    <th className="px-6 py-4">Member</th>
+                                                    <th className="px-6 py-4">Timeline</th>
+                                                    <th className="px-6 py-4 text-right">Duration</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-50 text-sm">
+                                                {borrow_history.data.map((item, idx) => (
+                                                    <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <Link href={`/members/${item.member_id}`} target="_blank" className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition-colors">
+                                                                {item.member_name}
+                                                            </Link>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="flex flex-col text-xs space-y-0.5">
+                                                                <span className="text-gray-400">Borrowed: {new Date(item.borrowed_at).toLocaleDateString()}</span>
+                                                                <span className="text-emerald-500 font-medium">Returned: {new Date(item.returned_at).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                            <span className="px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg font-mono text-xs font-bold">
+                                                                {item.duration_days} Days
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    ) : (
+                                        <div className="p-6 text-center text-gray-500 italic">
+                                            No transaction history yet.
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <AuditHistory
+                                    logs={data.audit_logs}
+                                    isLoading={loading}
+                                />
                             )}
                         </div>
                     </section>

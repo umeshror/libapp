@@ -17,6 +17,7 @@ import {
 import { useReturnBook } from '@/hooks/useReturnBook'
 import { toast } from 'sonner'
 import ConfirmationModal from '@/components/ConfirmationModal'
+import AuditHistory from '@/components/AuditHistory'
 import {
     Calendar,
     Mail,
@@ -71,6 +72,7 @@ export default function MemberDetailPage() {
     const [status, setStatus] = useState<'all' | 'active' | 'returned'>('all')
     const [sort, setSort] = useState<'borrowed_at' | 'returned_at'>('borrowed_at')
     const [order, setOrder] = useState<'asc' | 'desc'>('desc')
+    const [activeTab, setActiveTab] = useState<'borrows' | 'audit'>('borrows')
 
     const fetchData = useCallback(async () => {
         try {
@@ -285,111 +287,133 @@ export default function MemberDetailPage() {
                     {/* Borrow History */}
                     <section className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-                            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <History className="w-5 h-5 text-indigo-500" />
-                                Borrow History
-                            </h2>
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
-                                    <Filter className="w-3.5 h-3.5 text-slate-400" />
-                                    <select
-                                        className="text-xs font-semibold text-slate-600 bg-transparent border-none focus:ring-0 cursor-pointer"
-                                        value={status}
-                                        onChange={(e) => {
-                                            setStatus(e.target.value as 'all' | 'active' | 'returned')
-                                            setPage(1)
-                                        }}
-                                    >
-                                        <option value="all">All Records</option>
-                                        <option value="active">Active Only</option>
-                                        <option value="returned">Returned Only</option>
-                                    </select>
-                                </div>
-                                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
-                                    <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                                    <select
-                                        className="text-xs font-semibold text-slate-600 bg-transparent border-none focus:ring-0 cursor-pointer"
-                                        value={sort}
-                                        onChange={(e) => setSort(e.target.value as 'borrowed_at' | 'returned_at')}
-                                    >
-                                        <option value="borrowed_at">Date Borrowed</option>
-                                        <option value="returned_at">Date Returned</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50/50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                                    <tr>
-                                        <th className="px-6 py-3">Book</th>
-                                        <th className="px-6 py-3">Borrowed</th>
-                                        <th className="px-6 py-3">Returned</th>
-                                        <th className="px-6 py-3">Duration</th>
-                                        <th className="px-6 py-3 text-right">Result</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-sm">
-                                    {history.map((item, idx) => (
-                                        <tr key={idx} className="hover:bg-slate-50 transition-colors group">
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <Link href={`/books/${item.book_id}`} target="_blank" className="font-medium text-slate-900 hover:text-indigo-600 hover:underline transition-colors block max-w-[150px] truncate" title={item.book_title}>
-                                                    {item.book_title}
-                                                </Link>
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500">
-                                                {format(new Date(item.borrowed_at), 'MMM dd, yyyy')}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500">
-                                                {item.returned_at ? format(new Date(item.returned_at), 'MMM dd, yyyy') : '-'}
-                                            </td>
-                                            <td className="px-6 py-4 text-slate-500">
-                                                {item.duration_days !== null ? `${item.duration_days} days` : 'Ongoing'}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                {item.was_overdue ? (
-                                                    <span className="inline-flex items-center text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded text-[10px]">
-                                                        OVERDUE
-                                                    </span>
-                                                ) : item.returned_at ? (
-                                                    <span className="inline-flex items-center text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
-                                                        ON TIME
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded text-[10px]">
-                                                        IN PROGRESS
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
-                            <span className="text-sm text-slate-500 font-medium">
-                                Showing <span className="text-slate-900">{(page - 1) * limit + 1}</span> to <span className="text-slate-900">{Math.min(page * limit, total)}</span> of <span className="text-slate-900">{total}</span>
-                            </span>
-                            <div className="flex gap-2">
+                            <div className="flex gap-4">
                                 <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                    className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                    onClick={() => setActiveTab('borrows')}
+                                    className={`text-lg font-bold flex items-center gap-2 transition-all ${activeTab === 'borrows' ? 'text-slate-900 border-b-2 border-indigo-600 pb-1' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
-                                    <ChevronLeft className="w-4 h-4" />
+                                    <History className="w-5 h-5" />
+                                    Borrow History
                                 </button>
                                 <button
-                                    onClick={() => setPage(p => p + 1)}
-                                    disabled={page * limit >= total}
-                                    className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                    onClick={() => setActiveTab('audit')}
+                                    className={`text-lg font-bold flex items-center gap-2 transition-all ${activeTab === 'audit' ? 'text-slate-900 border-b-2 border-indigo-600 pb-1' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
-                                    <ChevronRight className="w-4 h-4" />
+                                    <Clock className="w-5 h-5" />
+                                    Audit Logs
                                 </button>
                             </div>
+                            {activeTab === 'borrows' && (
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                                        <Filter className="w-3.5 h-3.5 text-slate-400" />
+                                        <select
+                                            className="text-xs font-semibold text-slate-600 bg-transparent border-none focus:ring-0 cursor-pointer"
+                                            value={status}
+                                            onChange={(e) => {
+                                                setStatus(e.target.value as 'all' | 'active' | 'returned')
+                                                setPage(1)
+                                            }}
+                                        >
+                                            <option value="all">All Records</option>
+                                            <option value="active">Active Only</option>
+                                            <option value="returned">Returned Only</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm">
+                                        <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                                        <select
+                                            className="text-xs font-semibold text-slate-600 bg-transparent border-none focus:ring-0 cursor-pointer"
+                                            value={sort}
+                                            onChange={(e) => setSort(e.target.value as 'borrowed_at' | 'returned_at')}
+                                        >
+                                            <option value="borrowed_at">Date Borrowed</option>
+                                            <option value="returned_at">Date Returned</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
                         </div>
+
+                        {activeTab === 'borrows' ? (
+                            <>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-50/50 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-6 py-3">Book</th>
+                                                <th className="px-6 py-3">Borrowed</th>
+                                                <th className="px-6 py-3">Returned</th>
+                                                <th className="px-6 py-3">Duration</th>
+                                                <th className="px-6 py-3 text-right">Result</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 text-sm">
+                                            {history.map((item, idx) => (
+                                                <tr key={idx} className="hover:bg-slate-50 transition-colors group">
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <Link href={`/books/${item.book_id}`} target="_blank" className="font-medium text-slate-900 hover:text-indigo-600 hover:underline transition-colors block max-w-[150px] truncate" title={item.book_title}>
+                                                            {item.book_title}
+                                                        </Link>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-500">
+                                                        {format(new Date(item.borrowed_at), 'MMM dd, yyyy')}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-500">
+                                                        {item.returned_at ? format(new Date(item.returned_at), 'MMM dd, yyyy') : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-slate-500">
+                                                        {item.duration_days !== null ? `${item.duration_days} days` : 'Ongoing'}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right">
+                                                        {item.was_overdue ? (
+                                                            <span className="inline-flex items-center text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded text-[10px]">
+                                                                OVERDUE
+                                                            </span>
+                                                        ) : item.returned_at ? (
+                                                            <span className="inline-flex items-center text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
+                                                                ON TIME
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded text-[10px]">
+                                                                IN PROGRESS
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Pagination */}
+                                <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
+                                    <span className="text-sm text-slate-500 font-medium">
+                                        Showing <span className="text-slate-900">{(page - 1) * limit + 1}</span> to <span className="text-slate-900">{Math.min(page * limit, total)}</span> of <span className="text-slate-900">{total}</span>
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                                            disabled={page === 1}
+                                            className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                        >
+                                            <ChevronLeft className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setPage(p => p + 1)}
+                                            disabled={page * limit >= total}
+                                            className="p-2 bg-white border border-slate-200 rounded-lg shadow-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                                        >
+                                            <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="p-6">
+                                <AuditHistory logs={core?.audit_logs || []} isLoading={loading} />
+                            </div>
+                        )}
                     </section>
                 </div>
 

@@ -1,10 +1,13 @@
 """Book domain service — orchestrates book operations with input validation."""
 
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.domains.books.repository import BookRepository
 from app.domains.analytics.repository import AnalyticsRepository
+from app.shared.audit import log_audit_event
+from app.shared.csv_utils import parse_csv_stream, generate_csv_response
+from app.shared.schemas import PaginatedResponse, PaginationMeta, BulkOperationResponse
 from app.domains.books.schemas import (
     BookCreate,
     BookUpdate,
@@ -85,6 +88,40 @@ class BookService:
 
     def update_book(self, book_id: UUID, book_in: BookUpdate) -> Optional[BookResponse]:
         return self.repo.update(book_id, book_in)
+
+    def delete_book(self, book_id: UUID) -> bool:
+        return self.repo.delete(book_id)
+
+    def restore_book(self, book_id: UUID) -> Optional[BookResponse]:
+        return self.repo.restore(book_id)
+
+    def export_books_csv(self) -> str:
+        books = self.repo.list_all()
+        data = [BookResponse.model_validate(b).model_dump(mode="json") for b in books]
+        fieldnames = ["id", "title", "author", "isbn", "total_copies", "available_copies", "created_at", "updated_at"]
+        return generate_csv_response(data, fieldnames)
+
+    def import_books_csv(self, file_content: bytes) -> BulkOperationResponse:
+        rows = parse_csv_stream(file_content)
+        books_in = []
+        for row in rows:
+            try:
+                books_in.append(BookCreate(
+                    title=row["title"],
+                    author=row["author"],
+                    isbn=row["isbn"],
+                    total_copies=int(row.get("total_copies", 1))
+                ))
+            except Exception:
+                continue # Skip invalid rows for now
+
+        success, failed, errors = self.repo.bulk_create(books_in)
+        return BulkOperationResponse(
+            total_records=len(rows),
+            successful=success,
+            failed=failed + (len(rows) - len(books_in) - success),
+            errors=errors
+        )
 
     def get_book_details(
         self, book_id: UUID, history_limit: int = 10, history_offset: int = 0

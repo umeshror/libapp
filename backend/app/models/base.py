@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy import DateTime
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.declarative import declared_attr
@@ -20,4 +21,10 @@ class TimestampMixin:
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
+    )
+
+
+class SoftDeleteMixin:
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=None, nullable=True, index=True
     )

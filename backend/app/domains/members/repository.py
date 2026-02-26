@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc, case, and_, text
@@ -8,6 +8,7 @@ from app.models.borrow_record import BorrowRecord, BorrowStatus
 from app.models.book import Book
 from app.domains.members.schemas import MemberCreate, MemberResponse
 from app.shared.pagination import encode_cursor, decode_cursor
+from app.shared.audit import log_audit_event
 
 
 class MemberRepository:
@@ -21,21 +22,60 @@ class MemberRepository:
         self.session.add(db_obj)
         self.session.commit()
         self.session.refresh(db_obj)
+        
+        log_audit_event(
+            self.session,
+            entity_type="member",
+            entity_id=db_obj.id,
+            action="create",
+            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        
         return MemberResponse.model_validate(db_obj)
 
-    def get(self, id: UUID) -> Optional[MemberResponse]:
+    def get(self, id: UUID, include_deleted: bool = False) -> Optional[MemberResponse]:
         statement = select(Member).where(Member.id == id)
+        if not include_deleted:
+            statement = statement.where(Member.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
         if result:
             return MemberResponse.model_validate(result)
         return None
 
-    def get_by_email(self, email: str) -> Optional[MemberResponse]:
+    def get_by_email(self, email: str, include_deleted: bool = False) -> Optional[MemberResponse]:
         statement = select(Member).where(Member.email == email)
+        if not include_deleted:
+            statement = statement.where(Member.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
         if result:
             return MemberResponse.model_validate(result)
         return None
+    def update(self, member_id: UUID, data: dict) -> Optional[MemberResponse]:
+        db_obj = self.session.get(Member, member_id)
+        if not db_obj:
+            return None
+        
+        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        for field, value in data.items():
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, value)
+        
+        db_obj.updated_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(db_obj)
+        
+        log_audit_event(
+            self.session,
+            entity_type="member",
+            entity_id=db_obj.id,
+            action="update",
+            old_state=old_state,
+            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        
+        return MemberResponse.model_validate(db_obj)
 
     def list(
         self,
@@ -108,6 +148,85 @@ class MemberRepository:
             "total": total,
             "next_cursor": next_cursor
         }
+
+    def list_all(self, include_deleted: bool = False) -> List[Member]:
+        """Fetch all members for export."""
+        stmt = select(Member)
+        if not include_deleted:
+            stmt = stmt.where(Member.deleted_at.is_(None))
+        return list(self.session.execute(stmt).scalars().all())
+
+    def bulk_create(self, members_in: List[MemberCreate]) -> Tuple[int, int, List[dict]]:
+        """Perform batch inserts with individual audit logging."""
+        successful = 0
+        failed = 0
+        errors = []
+
+        for i, m_in in enumerate(members_in):
+            try:
+                db_obj = Member(
+                    name=m_in.name,
+                    email=m_in.email,
+                    phone=m_in.phone
+                )
+                self.session.add(db_obj)
+                self.session.flush()
+                
+                log_audit_event(
+                    self.session,
+                    entity_type="member",
+                    entity_id=db_obj.id,
+                    action="bulk_import",
+                    new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
+                )
+                successful += 1
+            except Exception as e:
+                self.session.rollback()
+                failed += 1
+                errors.append({"row": i, "error": str(e)})
+        
+        self.session.commit()
+        return successful, failed, errors
+
+    def delete(self, id: UUID) -> bool:
+        db_obj = self.session.get(Member, id)
+        if not db_obj or db_obj.deleted_at:
+            return False
+
+        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        db_obj.deleted_at = datetime.now(timezone.utc)
+        self.session.commit()
+
+        log_audit_event(
+            self.session,
+            entity_type="member",
+            entity_id=db_obj.id,
+            action="delete",
+            old_state=old_state,
+            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        return True
+
+    def restore(self, id: UUID) -> Optional[MemberResponse]:
+        db_obj = self.session.get(Member, id)
+        if not db_obj or not db_obj.deleted_at:
+            return None
+
+        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        db_obj.deleted_at = None
+        self.session.commit()
+
+        log_audit_event(
+            self.session,
+            entity_type="member",
+            entity_id=db_obj.id,
+            action="restore",
+            old_state=old_state,
+            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        return MemberResponse.model_validate(db_obj)
 
     def get_core_stats(self, member_id: UUID) -> dict:
         """

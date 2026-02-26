@@ -4,11 +4,16 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Member } from '../../types';
-import { getMembers, fetchAPI } from '../../lib/api';
+import { Member, BulkOperationResponse } from '../../types';
+import { getMembers, fetchAPI, exportMembersCSV, importMembersCSV, archiveMember, restoreMember } from '../../lib/api';
 import SearchBar from '../../components/SearchBar';
 import Pagination from '../../components/Pagination';
 import SortSelect from '../../components/SortSelect';
+import MemberFormModal from '../../components/MemberFormModal';
+import CSVImportModal from '../../components/CSVImportModal';
+import { Plus, Edit, User, Mail, Phone, Calendar, Download, Upload, Archive, RotateCcw } from 'lucide-react';
+import { toast } from 'sonner';
+import ConfirmationModal from '../../components/ConfirmationModal';
 
 function MembersContent() {
     const router = useRouter();
@@ -36,9 +41,12 @@ function MembersContent() {
     const totalPages = Math.ceil(total / pageSize) || 0;
     const error = queryError ? queryError.message : '';
 
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newMember, setNewMember] = useState({ name: '', email: '', phone: '' });
-    const [actionError, setActionError] = useState<string | null>(null);
+    // Form State
+    const [showMemberModal, setShowMemberModal] = useState(false);
+    const [editingMember, setEditingMember] = useState<Member | null>(null);
+    const [confirmingArchive, setConfirmingArchive] = useState<Member | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     const updateUrl = (newParams: Record<string, string | number>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -51,8 +59,6 @@ function MembersContent() {
         });
         router.push(`${pathname}?${params.toString()}`);
     };
-
-
 
     // Handlers
     const handleSearch = (newQuery: string) => {
@@ -67,23 +73,80 @@ function MembersContent() {
         updateUrl({ sort_by: field, order: newOrder, page: 1 });
     };
 
-    const addMemberMutation = useMutation({
-        mutationFn: (memberData: Partial<Member>) => fetchAPI('/members/', { method: 'POST', body: JSON.stringify(memberData) }),
+    // Mutations
+    const memberMutation = useMutation({
+        mutationFn: (memberData: Partial<Member>) => {
+            if (editingMember) {
+                return fetchAPI(`/members/${editingMember.id}`, { method: 'PUT', body: JSON.stringify(memberData) });
+            }
+            return fetchAPI('/members/', { method: 'POST', body: JSON.stringify(memberData) });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['members'] });
-            setShowAddForm(false);
-            setNewMember({ name: '', email: '', phone: '' });
+            setShowMemberModal(false);
+            setEditingMember(null);
+            toast.success(editingMember ? 'Member profile updated' : 'Member registered successfully');
         },
         onError: (err: Error) => {
-            setActionError(err.message || 'Failed to add member');
-            setTimeout(() => setActionError(null), 5000);
+            toast.error(err.message || 'Failed to save member');
         }
     });
 
-    async function handleAddMember(e: React.FormEvent) {
-        e.preventDefault();
-        addMemberMutation.mutate(newMember);
-    }
+    const handleAddClick = () => {
+        setEditingMember(null);
+        setShowMemberModal(true);
+    };
+
+    const handleEditClick = (member: Member) => {
+        setEditingMember(member);
+        setShowMemberModal(true);
+    };
+
+    const handleSaveMember = (memberData: Partial<Member>) => {
+        memberMutation.mutate(memberData);
+    };
+
+    const archiveMutation = useMutation({
+        mutationFn: (memberId: string) => archiveMember(memberId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['members'] });
+            setConfirmingArchive(null);
+            toast.success('Member archived successfully');
+        },
+        onError: (err: Error) => {
+            toast.error(err.message || 'Failed to archive member');
+        }
+    });
+
+    const restoreMutation = useMutation({
+        mutationFn: (memberId: string) => restoreMember(memberId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['members'] });
+            toast.success('Member profile restored');
+        },
+        onError: (err: Error) => {
+            toast.error(err.message || 'Failed to restore member');
+        }
+    });
+
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            const blob = await exportMembersCSV();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `members_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast.success('Export completed');
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <div className="p-8">
@@ -102,58 +165,29 @@ function MembersContent() {
                         ]}
                     />
                     <button
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap"
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-all whitespace-nowrap"
                     >
-                        {showAddForm ? 'Cancel' : 'Add New Member'}
+                        <Upload className="w-4 h-4" />
+                        Import
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-all whitespace-nowrap"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export
+                    </button>
+                    <button
+                        onClick={handleAddClick}
+                        className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all whitespace-nowrap"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Register Member
                     </button>
                 </div>
             </div>
-
-            {actionError && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-                    <div>
-                        <span className="block sm:inline">{actionError}</span>
-                    </div>
-                    <button onClick={() => setActionError(null)} className="text-red-500 hover:text-red-700 font-bold ml-4">
-                        &times;
-                    </button>
-                </div>
-            )}
-
-            {showAddForm && (
-                <div className="mb-8 bg-gray-50 p-6 rounded-lg border">
-                    <h2 className="text-xl font-semibold mb-4">Add New Member</h2>
-                    <form onSubmit={handleAddMember} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input
-                            type="text"
-                            placeholder="Name"
-                            className="p-2 border rounded"
-                            value={newMember.name}
-                            onChange={e => setNewMember({ ...newMember, name: e.target.value })}
-                            required
-                        />
-                        <input
-                            type="email"
-                            placeholder="Email"
-                            className="p-2 border rounded"
-                            value={newMember.email}
-                            onChange={e => setNewMember({ ...newMember, email: e.target.value })}
-                            required
-                        />
-                        <input
-                            type="text"
-                            placeholder="Phone"
-                            className="p-2 border rounded md:col-span-2"
-                            value={newMember.phone}
-                            onChange={e => setNewMember({ ...newMember, phone: e.target.value })}
-                        />
-                        <button type="submit" disabled={addMemberMutation.isPending} className="bg-green-600 text-white px-4 py-2 rounded md:col-span-2 disabled:opacity-50">
-                            {addMemberMutation.isPending ? 'Saving...' : 'Save Member'}
-                        </button>
-                    </form>
-                </div>
-            )}
 
             {isLoading ? (
                 <div className="text-center py-12">Loading members...</div>
@@ -185,9 +219,28 @@ function MembersContent() {
                                             {new Date(member.created_at).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link href={`/members/${member.id}`} className="text-blue-600 hover:text-blue-900 bg-blue-50 px-3 py-1 rounded-md transition-colors">
-                                                Details
-                                            </Link>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleEditClick(member)}
+                                                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg transition-all"
+                                                    title="Edit Member"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => setConfirmingArchive(member)}
+                                                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                    title="Archive Member"
+                                                >
+                                                    <Archive className="w-4 h-4" />
+                                                </button>
+                                                <Link
+                                                    href={`/members/${member.id}`}
+                                                    className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-all border border-indigo-100"
+                                                >
+                                                    Details
+                                                </Link>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -200,6 +253,31 @@ function MembersContent() {
             <div className="mt-6 flex justify-center">
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
+
+            <MemberFormModal
+                isOpen={showMemberModal}
+                onClose={() => setShowMemberModal(false)}
+                onSave={handleSaveMember}
+                member={editingMember}
+                isLoading={memberMutation.isPending}
+            />
+
+            <ConfirmationModal
+                isOpen={!!confirmingArchive}
+                onClose={() => setConfirmingArchive(null)}
+                onConfirm={() => confirmingArchive && archiveMutation.mutate(confirmingArchive.id)}
+                isLoading={archiveMutation.isPending}
+                title="Archive Member"
+                description={`Are you sure you want to archive "${confirmingArchive?.name}"? Their account will be deactivated but history will be preserved.`}
+                confirmText="Archive Member"
+                isDanger={true}
+            />
+            <CSVImportModal
+                isOpen={showImportModal}
+                onClose={() => { setShowImportModal(false); queryClient.invalidateQueries({ queryKey: ['members'] }); }}
+                onImport={importMembersCSV}
+                title="Import Members from CSV"
+            />
         </div>
     );
 }

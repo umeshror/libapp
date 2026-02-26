@@ -84,8 +84,8 @@ export default function DashboardPage() {
                                 key={days}
                                 onClick={() => setRange(days)}
                                 className={`px-4 py-1.5 text-xs font-bold rounded-md transition-all ${startDate === new Date(new Date().setDate(new Date().getDate() - days)).toISOString().split('T')[0]
-                                        ? 'bg-white shadow-sm text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'bg-white shadow-sm text-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 {days}D
@@ -136,6 +136,15 @@ export default function DashboardPage() {
                     trend="+5.4% activity"
                     color="text-emerald-600"
                     bgColor="bg-emerald-50"
+                />
+                <KPICard
+                    title="Health Score"
+                    value={data?.overview.health_score ? `${data.overview.health_score}%` : '-%'}
+                    description="Composite catalog health"
+                    icon={<RefreshCcw size={20} />}
+                    trend="System grade"
+                    color={data?.overview.health_score && data.overview.health_score > 90 ? "text-emerald-600" : "text-amber-600"}
+                    bgColor={data?.overview.health_score && data.overview.health_score > 90 ? "bg-emerald-50" : "bg-amber-50"}
                 />
                 <KPICard
                     title="Overdue Risk"

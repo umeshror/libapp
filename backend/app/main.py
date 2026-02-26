@@ -69,7 +69,11 @@ def get_application() -> FastAPI:
     application.include_router(v1_router, prefix="/api/v1")
 
     # Register Exception Handlers
+    from app.api.exception_handlers import global_exception_handler, validation_exception_handler
+    from fastapi.exceptions import RequestValidationError
     application.add_exception_handler(LibraryAppError, library_exception_handler)  # type: ignore
+    application.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore
+    application.add_exception_handler(Exception, global_exception_handler)
 
     # Infrastructure endpoints (un-versioned)
     @application.get("/health")

@@ -3,19 +3,25 @@
 from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, EmailStr
 
 
 # --- Core CRUD Schemas ---
 
 class MemberBase(BaseModel):
-    name: str
-    email: str
-    phone: Optional[str] = None
+    name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    phone: Optional[str] = Field(None, pattern=r"^\+?[\d\s\-xX.()]{7,30}$")
 
 
 class MemberCreate(MemberBase):
     pass
+
+
+class MemberUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, pattern=r"^\+?[\d\s\-xX.()]{7,30}$")
 
 
 class MemberResponse(MemberBase):

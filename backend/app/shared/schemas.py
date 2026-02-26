@@ -21,3 +21,12 @@ class PaginatedResponse(BaseModel, Generic[T]):
 
     data: List[T] = Field(..., description="List of items")
     meta: PaginationMeta = Field(..., description="Pagination metadata")
+
+
+class BulkOperationResponse(BaseModel):
+    """Result summary for bulk operations (import/delete/etc)."""
+
+    total_records: int
+    successful: int
+    failed: int
+    errors: List[dict] = []  # Detailed errors per row/item

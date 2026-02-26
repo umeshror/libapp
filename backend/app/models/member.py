@@ -1,10 +1,10 @@
 import uuid
 from sqlalchemy import Column, String, Index
 from sqlalchemy.dialects.postgresql import UUID
-from app.models.base import Base, TimestampMixin
+from app.models.base import Base, TimestampMixin, SoftDeleteMixin
 
 
-class Member(Base, TimestampMixin):
+class Member(Base, TimestampMixin, SoftDeleteMixin):
     """
     Core domain model representing library patrons.
     Email addresses must be unique across all members.

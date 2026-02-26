@@ -1,11 +1,13 @@
 """Member domain service — orchestrates member operations and analytics."""
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.domains.members.repository import MemberRepository
 from app.domains.analytics.repository import AnalyticsRepository
+from app.shared.csv_utils import parse_csv_stream, generate_csv_response
+from app.shared.schemas import PaginatedResponse, PaginationMeta, BulkOperationResponse
 from app.domains.members.schemas import (
     MemberCreate,
     MemberResponse,
@@ -30,6 +32,69 @@ class MemberService:
     def create_member(self, member_in: MemberCreate) -> MemberResponse:
         return self.repo.create(member_in)
 
+    def update_member(self, member_id: UUID, member_in: "MemberUpdate") -> Optional[MemberResponse]:
+        data = member_in.model_dump(exclude_unset=True)
+        return self.repo.update(member_id, data)
+
+    def delete_member(self, member_id: UUID) -> bool:
+        return self.repo.delete(member_id)
+
+    def restore_member(self, member_id: UUID) -> Optional[MemberResponse]:
+        return self.repo.restore(member_id)
+
+    def export_members_csv(self) -> str:
+        members = self.repo.list_all()
+        data = [MemberResponse.model_validate(m).model_dump(mode="json") for m in members]
+        fieldnames = ["id", "name", "email", "phone", "created_at", "updated_at"]
+        return generate_csv_response(data, fieldnames)
+
+    def import_members_csv(self, file_content: bytes) -> BulkOperationResponse:
+        rows = parse_csv_stream(file_content)
+        members_in = []
+        for row in rows:
+            try:
+                members_in.append(MemberCreate(
+                    name=row["name"],
+                    email=row["email"],
+                    phone=row.get("phone")
+                ))
+            except Exception:
+                continue
+
+        success, failed, errors = self.repo.bulk_create(members_in)
+        return BulkOperationResponse(
+            total_records=len(rows),
+            successful=success,
+            failed=failed + (len(rows) - len(members_in) - success),
+            errors=errors
+        )
+
+    def export_members_csv(self) -> str:
+        members = self.repo.list_all()
+        data = [MemberResponse.model_validate(m).model_dump(mode="json") for m in members]
+        fieldnames = ["id", "name", "email", "phone", "created_at", "updated_at"]
+        return generate_csv_response(data, fieldnames)
+
+    def import_members_csv(self, file_content: bytes) -> BulkOperationResponse:
+        rows = parse_csv_stream(file_content)
+        members_in = []
+        for row in rows:
+            try:
+                members_in.append(MemberCreate(
+                    name=row["name"],
+                    email=row["email"],
+                    phone=row.get("phone")
+                ))
+            except Exception:
+                continue
+
+        success, failed, errors = self.repo.bulk_create(members_in)
+        return BulkOperationResponse(
+            total_records=len(rows),
+            successful=success,
+            failed=failed + (len(rows) - len(members_in) - success),
+            errors=errors
+        )
     def get_member(self, member_id: UUID) -> Optional[MemberResponse]:
         return self.repo.get(member_id)
 

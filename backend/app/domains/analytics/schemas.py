@@ -10,6 +10,7 @@ class AnalyticsOverview(BaseModel):
     active_borrows: int
     overdue_borrows: int
     utilization_rate: float
+    health_score: float = 100.0
 
 
 class OverdueBreakdown(BaseModel):

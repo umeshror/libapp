@@ -4,14 +4,17 @@ import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { Book } from '../../types';
-import { getBooks, fetchAPI, getMembers, borrowBook } from '../../lib/api';
+import { Book, BulkOperationResponse } from '../../types';
+import { getBooks, fetchAPI, getMembers, borrowBook, exportBooksCSV, importBooksCSV, archiveBook, restoreBook } from '../../lib/api';
 import SearchBar from '../../components/SearchBar';
 import Pagination from '../../components/Pagination';
 import SortSelect from '../../components/SortSelect';
 import { toast } from 'sonner';
 import ConfirmationModal from '../../components/ConfirmationModal';
 import MemberSelectionModal from '../../components/MemberSelectionModal';
+import BookFormModal from '../../components/BookFormModal';
+import CSVImportModal from '../../components/CSVImportModal';
+import { Plus, Edit, Book as BookIcon, Download, Upload, Archive, RotateCcw } from 'lucide-react';
 
 function BooksContent() {
     const router = useRouter();
@@ -40,27 +43,34 @@ function BooksContent() {
     const error = queryError ? queryError.message : '';
 
     // Form State
-    const [showAddForm, setShowAddForm] = useState(false);
-    const [newBook, setNewBook] = useState({ title: '', author: '', isbn: '', total_copies: 1 });
-
+    const [showBookModal, setShowBookModal] = useState(false);
+    const [editingBook, setEditingBook] = useState<Book | null>(null);
     // Borrow Modal State
     const [borrowingBook, setBorrowingBook] = useState<Book | null>(null);
     const [borrowError, setBorrowError] = useState('');
 
     // Confirmation State
     const [confirmingBorrow, setConfirmingBorrow] = useState<{ book: Book, member: { id: string, name: string } } | null>(null);
+    const [confirmingArchive, setConfirmingArchive] = useState<Book | null>(null);
+    const [isExporting, setIsExporting] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
 
     // Mutations
-    const addBookMutation = useMutation({
-        mutationFn: (bookData: Partial<Book>) => fetchAPI('/books/', { method: 'POST', body: JSON.stringify(bookData) }),
+    const bookMutation = useMutation({
+        mutationFn: (bookData: Partial<Book>) => {
+            if (editingBook) {
+                return fetchAPI(`/books/${editingBook.id}`, { method: 'PUT', body: JSON.stringify(bookData) });
+            }
+            return fetchAPI('/books/', { method: 'POST', body: JSON.stringify(bookData) });
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['books'] });
-            setShowAddForm(false);
-            setNewBook({ title: '', author: '', isbn: '', total_copies: 1 });
-            toast.success('Book added successfully');
+            setShowBookModal(false);
+            setEditingBook(null);
+            toast.success(editingBook ? 'Book updated successfully' : 'Book added successfully');
         },
         onError: (err: Error) => {
-            toast.error(err.message || 'Failed to add book');
+            toast.error(err.message || 'Failed to save book');
         }
     });
 
@@ -129,10 +139,61 @@ function BooksContent() {
         updateUrl({ sort_by: field, order: newOrder, page: 1 });
     };
 
-    async function handleAddBook(e: React.FormEvent) {
-        e.preventDefault();
-        addBookMutation.mutate(newBook);
-    }
+    const handleAddClick = () => {
+        setEditingBook(null);
+        setShowBookModal(true);
+    };
+
+    const handleEditClick = (book: Book) => {
+        setEditingBook(book);
+        setShowBookModal(true);
+    };
+
+    const handleSaveBook = (data: Partial<Book>) => {
+        bookMutation.mutate(data);
+    };
+
+    const archiveMutation = useMutation({
+        mutationFn: (bookId: string) => archiveBook(bookId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['books'] });
+            setConfirmingArchive(null);
+            toast.success('Book archived successfully');
+        },
+        onError: (err: Error) => {
+            toast.error(err.message || 'Failed to archive book');
+        }
+    });
+
+    const restoreMutation = useMutation({
+        mutationFn: (bookId: string) => restoreBook(bookId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['books'] });
+            toast.success('Book restored successfully');
+        },
+        onError: (err: Error) => {
+            toast.error(err.message || 'Failed to restore book');
+        }
+    });
+
+    const handleExport = async () => {
+        try {
+            setIsExporting(true);
+            const blob = await exportBooksCSV();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `books_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            toast.success('Export completed');
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     return (
         <div className="p-8">
@@ -152,10 +213,26 @@ function BooksContent() {
                         ]}
                     />
                     <button
-                        onClick={() => setShowAddForm(!showAddForm)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 whitespace-nowrap"
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-all whitespace-nowrap"
                     >
-                        {showAddForm ? 'Cancel' : 'Add Book'}
+                        <Upload className="w-4 h-4" />
+                        Import
+                    </button>
+                    <button
+                        onClick={handleExport}
+                        disabled={isExporting}
+                        className="flex items-center gap-2 bg-white text-slate-700 border border-slate-200 px-4 py-2 rounded-xl font-bold hover:bg-slate-50 transition-all whitespace-nowrap"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export
+                    </button>
+                    <button
+                        onClick={handleAddClick}
+                        className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all whitespace-nowrap"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add Book
                     </button>
                 </div>
             </div>
@@ -196,14 +273,29 @@ function BooksContent() {
                                 <div className="flex gap-2">
                                     <Link
                                         href={`/books/${book.id}`}
-                                        className="px-3 py-1 rounded text-sm border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors flex items-center"
+                                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                                        title="View Details"
                                     >
-                                        Details
+                                        <BookIcon className="w-4 h-4" />
                                     </Link>
                                     <button
-                                        className={`px-3 py-1 rounded text-sm ${book.available_copies > 0
-                                            ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        onClick={() => handleEditClick(book)}
+                                        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                                        title="Edit Book"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmingArchive(book)}
+                                        className="p-2 rounded-lg border border-slate-200 text-rose-600 hover:bg-rose-50 transition-colors"
+                                        title="Archive Book"
+                                    >
+                                        <Archive className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all shadow-sm ${book.available_copies > 0
+                                            ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none'
                                             }`}
                                         disabled={book.available_copies <= 0}
                                         onClick={() => setBorrowingBook(book)}
@@ -221,56 +313,13 @@ function BooksContent() {
                 <Pagination currentPage={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
 
-            {showAddForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-xl max-w-lg w-full">
-                        <h2 className="text-xl font-bold mb-4">Add New Book</h2>
-                        <form onSubmit={handleAddBook} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <input
-                                type="text"
-                                placeholder="Title"
-                                className="p-2 border rounded"
-                                value={newBook.title}
-                                onChange={e => setNewBook({ ...newBook, title: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="text"
-                                placeholder="Author"
-                                className="p-2 border rounded"
-                                value={newBook.author}
-                                onChange={e => setNewBook({ ...newBook, author: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="text"
-                                placeholder="ISBN"
-                                className="p-2 border rounded"
-                                value={newBook.isbn}
-                                onChange={e => setNewBook({ ...newBook, isbn: e.target.value })}
-                                required
-                            />
-                            <input
-                                type="number"
-                                placeholder="Total Copies"
-                                className="p-2 border rounded"
-                                value={newBook.total_copies}
-                                onChange={e => setNewBook({ ...newBook, total_copies: parseInt(e.target.value) })}
-                                min="1"
-                                required
-                            />
-                            <div className="flex justify-end gap-2 md:col-span-2 mt-4">
-                                <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">
-                                    Cancel
-                                </button>
-                                <button type="submit" disabled={addBookMutation.isPending} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50">
-                                    {addBookMutation.isPending ? 'Saving...' : 'Save Book'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            <BookFormModal
+                isOpen={showBookModal}
+                onClose={() => setShowBookModal(false)}
+                onSave={handleSaveBook}
+                book={editingBook}
+                isLoading={bookMutation.isPending}
+            />
 
             <MemberSelectionModal
                 isOpen={!!borrowingBook}
@@ -287,6 +336,12 @@ function BooksContent() {
                 title="Confirm Borrow"
                 description={`Are you sure you want to borrow "${confirmingBorrow?.book.title}" for member "${confirmingBorrow?.member.name}"?`}
                 confirmText="Confirm Borrow"
+            />
+            <CSVImportModal
+                isOpen={showImportModal}
+                onClose={() => { setShowImportModal(false); queryClient.invalidateQueries({ queryKey: ['books'] }); }}
+                onImport={importBooksCSV}
+                title="Import Books from CSV"
             />
         </div>
     );

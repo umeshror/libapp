@@ -11,7 +11,7 @@ from app.domains.books.schemas import (
     BorrowerInfo, BorrowHistoryItem, BookAnalytics,
 )
 from app.shared.pagination import encode_cursor, decode_cursor
-
+from app.shared.audit import log_audit_event
 
 class BookRepository:
     """Data access layer for Book entities and their borrow relationships."""
@@ -30,10 +30,23 @@ class BookRepository:
         self.session.add(db_obj)
         self.session.commit()
         self.session.refresh(db_obj)
+        
+        log_audit_event(
+            self.session,
+            entity_type="book",
+            entity_id=db_obj.id,
+            action="create",
+            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        
         return BookResponse.model_validate(db_obj)
 
-    def get(self, id: UUID) -> Optional[BookResponse]:
+    def get(self, id: UUID, include_deleted: bool = False) -> Optional[BookResponse]:
         statement = select(Book).where(Book.id == id)
+        if not include_deleted:
+            statement = statement.where(Book.deleted_at.is_(None))
+        result = self.session.execute(statement).scalar_one_or_none()
         result = self.session.execute(statement).scalar_one_or_none()
         if result:
             return BookResponse.model_validate(result)
@@ -53,6 +66,7 @@ class BookRepository:
         Constraint: Service must handle the session commit.
         """
         statement = select(Book).where(Book.id == id).with_for_update()
+        statement = statement.where(Book.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
         return result
 
@@ -148,11 +162,92 @@ class BookRepository:
             "next_cursor": next_cursor
         }
 
+    def list_all(self, include_deleted: bool = False) -> List[Book]:
+        """Fetch all books for export."""
+        stmt = select(Book)
+        if not include_deleted:
+            stmt = stmt.where(Book.deleted_at.is_(None))
+        return list(self.session.execute(stmt).scalars().all())
+
+    def bulk_create(self, books_in: List[BookCreate]) -> Tuple[int, int, List[dict]]:
+        """Perform batch inserts with individual audit logging."""
+        successful = 0
+        failed = 0
+        errors = []
+
+        for i, book_in in enumerate(books_in):
+            try:
+                db_obj = Book(
+                    title=book_in.title,
+                    author=book_in.author,
+                    isbn=book_in.isbn,
+                    total_copies=book_in.total_copies,
+                    available_copies=book_in.total_copies, # Fresh import: avail = total
+                )
+                self.session.add(db_obj)
+                self.session.flush() # Get ID without full commit
+                
+                log_audit_event(
+                    self.session,
+                    entity_type="book",
+                    entity_id=db_obj.id,
+                    action="bulk_import",
+                    new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
+                )
+                successful += 1
+            except Exception as e:
+                self.session.rollback()
+                failed += 1
+                errors.append({"row": i, "error": str(e)})
+        
+        self.session.commit()
+        return successful, failed, errors
+
+    def delete(self, id: UUID) -> bool:
+        db_obj = self.session.get(Book, id)
+        if not db_obj or db_obj.deleted_at:
+            return False
+
+        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
+        db_obj.deleted_at = datetime.now(timezone.utc)
+        self.session.commit()
+
+        log_audit_event(
+            self.session,
+            entity_type="book",
+            entity_id=db_obj.id,
+            action="delete",
+            old_state=old_state,
+            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        return True
+
+    def restore(self, id: UUID) -> Optional[BookResponse]:
+        db_obj = self.session.get(Book, id)
+        if not db_obj or not db_obj.deleted_at:
+            return None
+
+        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
+        db_obj.deleted_at = None
+        self.session.commit()
+
+        log_audit_event(
+            self.session,
+            entity_type="book",
+            entity_id=db_obj.id,
+            action="restore",
+            old_state=old_state,
+            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        return BookResponse.model_validate(db_obj)
     def update(self, id: UUID, obj_in: BookUpdate) -> Optional[BookResponse]:
         db_obj = self.session.get(Book, id)
         if not db_obj:
             return None
 
+        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
@@ -160,6 +255,17 @@ class BookRepository:
         self.session.add(db_obj)
         self.session.commit()
         self.session.refresh(db_obj)
+        
+        log_audit_event(
+            self.session,
+            entity_type="book",
+            entity_id=db_obj.id,
+            action="update",
+            old_state=old_state,
+            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
+        )
+        self.session.commit()
+        
         return BookResponse.model_validate(db_obj)
 
     def get_current_borrowers(self, book_id: UUID) -> List[BorrowerInfo]:

@@ -1,10 +1,10 @@
 import uuid
 from sqlalchemy import Column, Integer, String, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
-from app.models.base import Base, TimestampMixin
+from app.models.base import Base, TimestampMixin, SoftDeleteMixin
 
 
-class Book(Base, TimestampMixin):
+class Book(Base, TimestampMixin, SoftDeleteMixin):
     """
     Core inventory model enforcing business rules for book availability.
     Maintains total physical copies and tracks available copies for borrowing.

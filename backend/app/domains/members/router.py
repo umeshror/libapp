@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
 from app.shared.deps import get_db
-from app.shared.schemas import PaginatedResponse
+from app.shared.schemas import PaginatedResponse, BulkOperationResponse
 from app.domains.members.service import MemberService
+from fastapi.responses import Response, JSONResponse
+from fastapi import UploadFile, File
 from app.domains.members.schemas import (
     MemberCreate,
+    MemberUpdate,
     MemberResponse,
     MemberCoreDetails,
     MemberBorrowHistoryResponse,
@@ -49,6 +52,15 @@ def get_member(member_id: UUID, db: Session = Depends(get_db)):
     service = MemberService(db)
     return service.get_member_details(member_id)
 
+
+@router.put("/{member_id}", response_model=MemberResponse, dependencies=[Depends(rate_limit_dependency)])
+def update_member(member_id: UUID, member_in: MemberUpdate, db: Session = Depends(get_db)):
+    """Update an existing member."""
+    service = MemberService(db)
+    member = service.update_member(member_id, member_in)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return member
 
 @router.get("/{member_id}/stats", response_model=MemberCoreDetails)
 def get_member_stats(member_id: UUID, db: Session = Depends(get_db)):
@@ -118,3 +130,36 @@ def list_borrows_by_member(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+@router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(rate_limit_dependency)])
+def delete_member(member_id: UUID, db: Session = Depends(get_db)):
+    """Soft delete a member."""
+    service = MemberService(db)
+    success = service.delete_member(member_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Member not found or already deleted")
+
+@router.post("/{member_id}/restore", response_model=MemberResponse, dependencies=[Depends(rate_limit_dependency)])
+def restore_member(member_id: UUID, db: Session = Depends(get_db)):
+    """Restore a soft-deleted member."""
+    service = MemberService(db)
+    member = service.restore_member(member_id)
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found or not deleted")
+    return member
+@router.get("/export/csv", dependencies=[Depends(rate_limit_dependency)])
+def export_members(db: Session = Depends(get_db)):
+    """Export all members to CSV."""
+    service = MemberService(db)
+    csv_data = service.export_members_csv()
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=members.csv"}
+    )
+
+@router.post("/import/csv", response_model=BulkOperationResponse, dependencies=[Depends(rate_limit_dependency)])
+def import_members(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Import members from CSV."""
+    service = MemberService(db)
+    content = file.file.read()
+    return service.import_members_csv(content)

@@ -5,8 +5,10 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
 from app.shared.deps import get_db
-from app.shared.schemas import PaginatedResponse
+from app.shared.schemas import PaginatedResponse, BulkOperationResponse
 from app.domains.books.service import BookService
+from fastapi.responses import Response, JSONResponse
+from fastapi import UploadFile, File
 from app.domains.books.schemas import (
     BookCreate, BookUpdate, BookResponse, BookDetailResponse,
 )
@@ -67,3 +69,36 @@ def get_book_details(
     """Get comprehensive book details with borrowers, history, and analytics."""
     service = BookService(db)
     return service.get_book_details(book_id, history_limit, history_offset)
+@router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(rate_limit_dependency)])
+def delete_book(book_id: UUID, db: Session = Depends(get_db)):
+    """Soft delete a book."""
+    service = BookService(db)
+    success = service.delete_book(book_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Book not found or already deleted")
+
+@router.post("/{book_id}/restore", response_model=BookResponse, dependencies=[Depends(rate_limit_dependency)])
+def restore_book(book_id: UUID, db: Session = Depends(get_db)):
+    """Restore a soft-deleted book."""
+    service = BookService(db)
+    book = service.restore_book(book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found or not deleted")
+    return book
+@router.get("/export/csv", dependencies=[Depends(rate_limit_dependency)])
+def export_books(db: Session = Depends(get_db)):
+    """Export all books to CSV."""
+    service = BookService(db)
+    csv_data = service.export_books_csv()
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=books.csv"}
+    )
+
+@router.post("/import/csv", response_model=BulkOperationResponse, dependencies=[Depends(rate_limit_dependency)])
+def import_books(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Import books from CSV."""
+    service = BookService(db)
+    content = file.file.read()
+    return service.import_books_csv(content)

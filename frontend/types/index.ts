@@ -31,6 +31,7 @@ export interface PaginationMeta {
     total: number;
     limit: number;
     offset: number;
+    next_cursor: string | null;
     has_more: boolean;
 }
 
@@ -42,6 +43,7 @@ export interface PaginatedResponse<T> {
 export interface ListParams {
     limit?: number;
     offset?: number;
+    cursor?: string;
     q?: string;
     sort?: string;
 }
@@ -51,6 +53,25 @@ export interface AnalyticsOverview {
     active_borrows: number;
     overdue_borrows: number;
     utilization_rate: number;
+    health_score: number;
+}
+
+export interface BulkOperationResponse {
+    total_records: number;
+    successful: number;
+    failed: number;
+    errors: string[];
+}
+
+export interface AuditLogEntry {
+    id: string;
+    entity_type: string;
+    entity_id: string;
+    action: string;
+    old_state: any;
+    new_state: any;
+    actor_id: string | null;
+    created_at: string;
 }
 
 export interface OverdueBreakdown {
@@ -153,6 +174,7 @@ export interface BookDetailResponse {
     current_borrowers: BorrowerInfo[];
     borrow_history: BorrowHistoryResponse;
     analytics: BookAnalytics;
+    audit_logs: AuditLogEntry[];
 }
 
 export interface MembershipAnalyticsSummary {
@@ -166,6 +188,7 @@ export interface MemberCoreDetails {
     membership_duration_days: number;
     active_borrows_count: number;
     analytics_summary: MembershipAnalyticsSummary;
+    audit_logs: AuditLogEntry[];
 }
 
 export interface MemberBorrowHistoryItem {

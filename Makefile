@@ -1,6 +1,6 @@
 # --- Neighborhood Library Makefile ---
 
-.PHONY: help install dev start setup test lint format build db-migrate db-migration db-seed db-seed-high db-reset db-fresh db-shell docker-db docker-up docker-down docker-seed docker-ps clean
+.PHONY: help install dev start setup test lint format build db-migrate db-migration db-seed db-seed-high db-reset db-fresh db-shell docker-db docker-up docker-down docker-seed docker-ps clean api-demo
 
 # Help command to list available targets
 help:
@@ -23,6 +23,7 @@ help:
 	@echo "  docker-down - Stops all services and removes data volumes"
 	@echo "  docker-seed - Manually triggers a CLEAR + SEED via Docker profile"
 	@echo "  docker-ps  - Lists running containers"
+	@echo "  api-demo   - Run a standalone Python client script to verify core API flows"
 	@echo "  clean      - Remove cache files and temporary data"
 
 # Composite Setup
@@ -109,3 +110,6 @@ clean:
 	rm -rf backend/migrations/__pycache__
 	rm -rf backend/.coverage
 	rm -rf frontend/.next
+# Client Demo
+api-demo:
+	PYTHONPATH=backend python scripts/api_demo.py

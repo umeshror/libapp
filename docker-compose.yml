@@ -29,6 +29,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-library}
+      POSTGRES_PORT: 5432
       SEED_DATA: ${SEED_DATA:-false}
       SEED_SCENARIO: ${SEED_SCENARIO:-minimal}
     ports:
@@ -53,6 +54,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-library}
+      POSTGRES_PORT: 5432
     command: [ "python", "app/seeds/seed_runner.py", "--scenario", "minimal", "--clear" ]
     profiles:
       - tools
@@ -61,6 +63,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     restart: always
     ports:
       - "3003:3003"

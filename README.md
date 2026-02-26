@@ -1,29 +1,35 @@
 # Neighborhood Library Service
 
 
-## 🎬 Demo
+## Demo
 
-![Demo](Library-Management-System.gif)
+### Dashboard & Analytics
+![Dashboard & Filters](media/feature_1_dashboard_filters_1771967485418.webp)
+*Interactive dashboard with real-time metrics and dynamic date filters.*
+
+### Inventory Management
+![Book Management](media/feature_2_book_management_1771967536244.webp)
+*Full CRUD lifecycle: Adding, editing, and archiving books with built-in search and sorting.*
+
+### Deep Dive: Book Details & Navigation
+![Book Details](media/feature_3_book_detail_flow_1771968081157.webp)
+*Detailed book stats, audit trails, and seamless navigation to active borrowers.*
+
+### Member Management
+![Member Management](media/feature_4_member_management_1771968375705.webp)
+*Registering, updating, and managing members with full archival support.*
+
+### Circulation & Member History
+![Member Details & Returns](media/feature_5_member_detail_return_1771969016582.webp)
+*Tracking member borrow history, risk levels, and processing returns directly from profiles.*
 
 <p align="center">
-  <img src="media/dashboard.png" width="45%">
-  <img src="media/swagger_docs.png" width="45%">
+  <img src="media/dashboard_1771959390949.png" width="45%" alt="Dashboard">
+  <img src="media/bookslist_1771959403674.png" width="45%" alt="Books List">
 </p>
 <p align="center">
-  <img src="media/2.png" width="45%">
-  <img src="media/3.png" width="33%">
-  <img src="media/4.png" width="33%">
-  <img src="media/5.png" width="33%">
-</p>
-<p align="center">
-  <img src="media/6.png" width="33%">
-  <img src="media/7.png" width="33%">
-  <img src="media/8.png" width="33%">
-</p>
-<p align="center">
-  <img src="media/9.png" width="33%">
-  <img src="media/10.png" width="33%">
-  <img src="media/11.png" width="33%">
+  <img src="media/bookdetail_1771959418170.png" width="45%" alt="Book Detail">
+  <img src="media/memberslist_1771959435520.png" width="45%" alt="Members List">
 </p>
 
 ---
@@ -330,39 +336,104 @@ All config is loaded from `.env` files via Pydantic's `BaseSettings`.
 
 ## Architecture
 
-The codebase is organized into **domain-driven vertical slices**. Each domain owns its full stack — router, service, repository, and schemas — with no cross-domain leakage.
+### System Flow
+The system follows a strict **four-layer boundary** to ensure maintainability and testability:
 
+```mermaid
+graph TD
+    Client[HTTP Client] --> Router[FastAPI Router]
+    Router --> Service[Domain Service]
+    Service --> Repository[Repository Layer]
+    Repository --> DB[(PostgreSQL)]
+    
+    subgraph "Validation & Serialization"
+        Router
+    end
+    
+    subgraph "Business Logic & Transactions"
+        Service
+    end
+    
+    subgraph "Data Access & Keyset Pagination"
+        Repository
+    end
 ```
-domains/
-├── books/          ← books only: listing, search, inventory, analytics
-├── members/        ← members only: profiles, history, risk scoring
-├── borrows/        ← borrow lifecycle: lock → create → return → release
-└── analytics/      ← aggregations only: never writes, never owns data
+
+### Domain-Driven Design
+The codebase is organized into vertical slices. Each domain owns its full stack with zero leakage:
+
+```mermaid
+graph LR
+    subgraph "Domains"
+        Books[Books Domain]
+        Members[Members Domain]
+        Borrows[Borrows Domain]
+        Analytics[Analytics Domain]
+    end
+    
+    Borrows -.-> Books
+    Borrows -.-> Members
+    Analytics -.-> Books
+    Analytics -.-> Members
+    Analytics -.-> Borrows
 ```
 
-Within each domain, a strict **four-layer boundary** is enforced:
+### Database Schema (ERD)
 
+The database is normalized to 3NF and uses UUIDs for primary keys to ensure global uniqueness and prevent ID enumeration.
+
+```mermaid
+erDiagram
+    BOOK {
+        uuid id PK
+        string title
+        string author
+        string isbn "indexed (GIN trigram)"
+        int total_copies
+        int available_copies "check (>= 0)"
+        timestamp created_at
+    }
+    MEMBER {
+        uuid id PK
+        string name
+        string email "unique"
+        string phone
+        timestamp created_at
+    }
+    BORROW_RECORD {
+        uuid id PK
+        uuid book_id FK
+        uuid member_id FK
+        timestamp borrowed_at
+        timestamp due_date
+        timestamp returned_at "null if active"
+        string status "BORROWED | RETURNED"
+    }
+
+    MEMBER ||--o{ BORROW_RECORD : "borrows"
+    BOOK ||--o{ BORROW_RECORD : "tracked in"
 ```
-HTTP → Router → Service → Repository → PostgreSQL
 
-Router:
-  Validate & serialize. No business logic.
-
-Service:
-  Enforce invariants. Define transactions. Manage locks.
-
-Repository:
-  Execute queries. Handle pagination & aggregations.
-
-PostgreSQL:
-  Enforce constraints. Maintain integrity. Optimize execution.
-```
+> [!NOTE]
+> **Performance Optimization**: The `borrow_record` table includes a **partial index** on `returned_at` where it is `NULL`. This makes querying "all currently borrowed books" an $O(log N)$ operation even with millions of historical records.
 
 **Services never raise `HTTPException`.** They raise typed domain exceptions (`InventoryUnavailableError`, `BorrowLimitExceededError`, etc.) that are mapped to HTTP responses by a centralized exception handler in `api/exception_handlers.py`. This keeps the service layer fully testable without an HTTP context.
 
 **Repositories never contain business rules.** A repository can tell you how many books are available. It cannot decide whether that number is enough to allow a borrow — that decision lives in the service.
 
 This boundary is the reason the system stays maintainable as it grows. Adding a new feature means touching exactly one domain. Adding a new query means touching exactly one repository. Nothing bleeds.
+
+### Service Interface: REST vs. gRPC
+
+For this implementation, I have utilized **REST** instead of gRPC-Web. 
+
+**Rationale:**
+- **Zero-Dependency Browsers**: REST allows the frontend to interact with the API using standard `fetch` without requiring a Protobuf compilation step or a gRPC-Web proxy (like Envoy).
+- **Rapid Iteration**: FastAPI's automatic Swagger/OpenAPI generation provides an interactive, type-safe development experience that mimics gRPC's benefits while remaining accessible through simple `curl` commands.
+- **Assignment Compliance**: The task prompt explicitly allowed REST if preferred over gRPC-web, and I chose it to prioritize a "Zero Config" setup experience for the evaluator.
+
+> [!TIP]
+> **No .proto files required**: Since REST was chosen, no Protobuf compilation is necessary to run this project.
 
 
 ---
@@ -434,12 +505,15 @@ GET    /metrics                        In-memory borrow success/failure counters
 
 ### 1. Keyset (Cursor) Pagination — O(1) at Any Depth
 
-Standard offset pagination (`LIMIT 20 OFFSET 100000`) is **O(N)** because PostgreSQL scans and discards the first 100,000 rows. At 4M records, this becomes unusable.
+Standard offset pagination (`LIMIT 20 OFFSET 100000`) is **O(N)** because PostgreSQL scans and discards the first 100,000 rows. In this system, we use **Opaque Cursors** (Base64 encoded sort_val:uuid) which jump directly to the target record using an index.
 
-Instead, every list endpoint uses a cursor encoding the last-seen sort value + UUID:
+**Why Cursors?**
+- **Performance**: Constant time $O(1)$ regardless of deep linking.
+- **Stability**: Prevents "item skipping" or duplication when data is inserted/deleted mid-scroll.
+- **Abstraction**: Base64 encoding hides internal IDs and sort values from the client.
 
 ```python
-# Example: cursor = "UHl0aG9uIEd1aWRlOmExYjJjM2Q0L..."
+# Example logic in Repository:
 if sort_order == "asc":
     stmt = stmt.where(
         (sort_column > cursor_val) |
@@ -447,27 +521,20 @@ if sort_order == "asc":
     )
 ```
 
-The result: page 200 loads in the **same time** as page 1.
-
 ---
 
-### 2. Concurrency-Safe Inventory — SELECT FOR UPDATE
+### 2. Concurrency-Safe Inventory — Pessimistic Locking
 
-Borrowing a book uses a **row-level pessimistic lock** to prevent race conditions:
+Borrowing a book uses a **row-level pessimistic lock** (`SELECT FOR UPDATE`) to prevent concurrent inventory leakage.
+
+**Pessimistic vs Optimistic:**
+- **Why Pessimistic?** In a library where "hot" books might be borrowed simultaneously by hundreds of users, optimistic locking (versioning) would cause high retry rates and poor user experience. 
+- **Integrity**: Row locks ensure that the moment a user begins the borrow transaction, that specific copy is reserved until the transaction commits or fails.
 
 ```python
 # BookRepository.get_with_lock()
 stmt = select(Book).where(Book.id == id).with_for_update()
 ```
-
-Business rule enforcement in the service layer:
-1. Count active borrows — reject if `≥ MAX_ACTIVE_BORROWS (5)`
-2. Check for duplicate active borrow on the same book
-3. Lock the book row
-4. Check `available_copies > 0` — reject if exhausted
-5. Decrement `available_copies`, create `BorrowRecord`, commit atomically
-
-Even under concurrent requests, inventory never goes negative. This is enforced both in application code **and** at the database level via a check constraint.
 
 ---
 
@@ -601,24 +668,28 @@ Inventory sync: single atomic SQL UPDATE with GREATEST(0, ...)
 
 ---
 
-## Testing Strategy
-
-```bash
-make test    # Run all tests with coverage report
-make lint    # Ruff + Mypy + ESLint
-```
-
-**Test coverage includes:**
-
-| Category | What's tested |
-|:---------|:-------------|
-| Borrow rules | Max borrow limit, duplicate active borrow prevention |
-| Concurrency | Inventory integrity under concurrent borrow requests |
-| Inventory | `available_copies` never goes below 0 |
-| Return flow | Status transitions, timestamp assignment |
-| Pagination | Cursor decoding, edge cases (empty results, last page) |
 | Analytics | Aggregation correctness for overdue, utilization, trends |
 | Not-found | All 404 paths raise typed domain exceptions |
+
+---
+
+## 🐍 Standalone Client Demo
+
+To satisfy the "Show how a client might call your service" tip, I've provided a standalone Python script that performs a full end-to-end library workflow (Create Book → Create Member → Borrow → Return).
+
+**Requirements**:
+- The API server must be running (`make start`).
+- `httpx` must be installed (`make install`).
+
+**Run the demo**:
+```bash
+make api-demo
+```
+
+This script demonstrates:
+- **CRUD Operations**: Programmatic creation of records.
+- **Validation**: Attempting a duplicate borrow to trigger a `400 Bad Request`.
+- **Relationship Management**: Linking members to books via borrow records.
 
 ---
 
@@ -649,6 +720,21 @@ make start
 | Deep pagination | Same speed as page 1 (keyset cursor) |
 | Concurrent borrows | No negative inventory (row-level locking) |
 | Rate limit | Returns `429` after 100 req/min per IP |
+
+### CLI Benchmarking Commands
+
+You can verify the $O(1)$ pagination and $O(log N)$ search performance yourself:
+
+```bash
+# Measure Search Latency (200k records)
+time curl -s "http://localhost:8000/api/v1/books/?q=python" > /dev/null
+
+# Measure Deep Pagination (Page ~5000 vs Page 1)
+# Page 1
+time curl -s "http://localhost:8000/api/v1/books/?limit=20" > /dev/null
+# Deep Page (using an encoded cursor)
+time curl -s "http://localhost:8000/api/v1/books/?limit=20&cursor=ENCODED_TOKEN" > /dev/null
+```
 
 ---
 

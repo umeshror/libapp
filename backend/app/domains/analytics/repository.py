@@ -33,7 +33,7 @@ class AnalyticsRepository:
             select(
                 func.count(Book.id).label("total_books"),
                 func.sum(Book.total_copies).label("total_capacity")
-            )
+            ).where(Book.deleted_at.is_(None))
         ).first()
 
         borrow_stats = self.session.execute(
@@ -54,11 +54,27 @@ class AnalyticsRepository:
         if total_capacity > 0:
             utilization_rate = (active_borrows / total_capacity) * 100.0
 
+        # Calculate health score (Base 100)
+        health_score = 100.0
+        # Penalize for overdue
+        if active_borrows > 0:
+            overdue_rate = (overdue_borrows / active_borrows) * 100.0
+            health_score -= (overdue_rate * 0.5) # Overdue weights 0.5
+        
+        # Penalize for low capacity utilization if too low or too high
+        # Extreme 1: Empty library (0%) -> Score -10
+        if utilization_rate < 5:
+            health_score -= 10
+        # Extreme 2: At capacity (100%) -> Score -10 (no room for new arrivals)
+        if utilization_rate > 95:
+            health_score -= 10
+
         return AnalyticsOverview(
             total_books=total_books,
             active_borrows=active_borrows,
             overdue_borrows=overdue_borrows,
             utilization_rate=round(utilization_rate, 2),
+            health_score=round(max(0, min(100, health_score)), 1)
         )
 
     def get_overdue_breakdown(self) -> OverdueBreakdown:
@@ -101,6 +117,7 @@ class AnalyticsRepository:
             .where(
                 BorrowRecord.borrowed_at >= start_date,
                 BorrowRecord.borrowed_at <= end_date,
+                Member.deleted_at.is_(None)
             )
             .group_by(Member.id)
             .order_by(desc("borrow_count"))
@@ -121,9 +138,12 @@ class AnalyticsRepository:
             func.count(Book.id).filter(Book.available_copies == 0).label("unavailable"),
             # Optimized 'never borrowed' check using EXISTS subquery inside filter
             func.count(Book.id).filter(
-                ~select(BorrowRecord.id).where(BorrowRecord.book_id == Book.id).exists()
+                and_(
+                    Book.deleted_at.is_(None),
+                    ~select(BorrowRecord.id).where(BorrowRecord.book_id == Book.id).exists()
+                )
             ).label("never_borrowed")
-        )
+        ).where(Book.deleted_at.is_(None))
         
         result = self.session.execute(stmt).first()
 
@@ -184,6 +204,7 @@ class AnalyticsRepository:
                 func.count(BorrowRecord.id).label("borrow_count"),
             )
             .join(BorrowRecord)
+            .where(Book.deleted_at.is_(None))
             .group_by(Book.id)
             .order_by(desc("borrow_count"))
             .limit(limit)
