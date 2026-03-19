@@ -1,13 +1,15 @@
 """Member domain API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from uuid import UUID
 from typing import Optional
-from app.shared.deps import get_db
+from app.shared.deps import get_uow
+from app.shared.uow import UnitOfWork
 from app.shared.schemas import PaginatedResponse, BulkOperationResponse
 from app.domains.members.service import MemberService
-from fastapi.responses import Response, JSONResponse
+from app.domains.borrows.service import BorrowService
+from app.domains.borrows.schemas import BorrowRecordResponse
+from fastapi.responses import Response
 from fastapi import UploadFile, File
 from app.domains.members.schemas import (
     MemberCreate,
@@ -23,8 +25,12 @@ router = APIRouter()
 
 
 @router.post("/", response_model=MemberResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency)])
-def create_member(member_in: MemberCreate, db: Session = Depends(get_db)):
-    service = MemberService(db)
+def create_member(
+    member_in: MemberCreate, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
+    service = MemberService(uow, background_tasks)
     return service.create_member(member_in)
 
 
@@ -35,9 +41,9 @@ def list_members(
     q: Optional[str] = None,
     sort: str = "-created_at",
     cursor: Optional[str] = None,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
-    service = MemberService(db)
+    service = MemberService(uow)
     try:
         return service.list_members(
             offset=offset, limit=limit, query=q, sort=sort, cursor=cursor
@@ -47,25 +53,31 @@ def list_members(
 
 
 @router.get("/{member_id}", response_model=MemberCoreDetails)
-def get_member(member_id: UUID, db: Session = Depends(get_db)):
+def get_member(member_id: UUID, uow: UnitOfWork = Depends(get_uow)):
     """Get core member details including stats and analytics summary."""
-    service = MemberService(db)
+    service = MemberService(uow)
     return service.get_member_details(member_id)
 
 
 @router.put("/{member_id}", response_model=MemberResponse, dependencies=[Depends(rate_limit_dependency)])
-def update_member(member_id: UUID, member_in: MemberUpdate, db: Session = Depends(get_db)):
+def update_member(
+    member_id: UUID, 
+    member_in: MemberUpdate, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Update an existing member."""
-    service = MemberService(db)
+    service = MemberService(uow, background_tasks)
     member = service.update_member(member_id, member_in)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found")
     return member
 
+
 @router.get("/{member_id}/stats", response_model=MemberCoreDetails)
-def get_member_stats(member_id: UUID, db: Session = Depends(get_db)):
+def get_member_stats(member_id: UUID, uow: UnitOfWork = Depends(get_uow)):
     """Get core member stats (active borrows, overdue rate, etc.)."""
-    service = MemberService(db)
+    service = MemberService(uow)
     return service.get_member_details(member_id)
 
 
@@ -77,24 +89,21 @@ def get_member_borrow_history(
     status: str = "all",
     sort: str = "borrowed_at",
     order: str = "desc",
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """Get paginated borrow history for a member."""
-    service = MemberService(db)
+    service = MemberService(uow)
     return service.get_member_borrow_history(member_id, limit, offset, status, sort, order)
 
 
 @router.get("/{member_id}/analytics", response_model=MemberAnalyticsResponse)
-def get_member_analytics(member_id: UUID, db: Session = Depends(get_db)):
+def get_member_analytics(member_id: UUID, uow: UnitOfWork = Depends(get_uow)):
     """Get deep analytics and behavioral insights for a member."""
-    service = MemberService(db)
+    service = MemberService(uow)
     return service.get_member_analytics(member_id)
 
 
 # --- Member-scoped borrow operations ---
-
-from app.domains.borrows.service import BorrowService
-from app.domains.borrows.schemas import BorrowRecordResponse
 
 
 @router.post(
@@ -103,10 +112,13 @@ from app.domains.borrows.schemas import BorrowRecordResponse
     status_code=status.HTTP_201_CREATED,
 )
 def borrow_book_for_member(
-    member_id: UUID, book_id: UUID, db: Session = Depends(get_db)
+    member_id: UUID, 
+    book_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
 ):
     """Borrow a book for a specific member (member-scoped)."""
-    service = BorrowService(db)
+    service = BorrowService(uow, background_tasks)
     return service.borrow_book(book_id, member_id)
 
 
@@ -120,36 +132,49 @@ def list_borrows_by_member(
     limit: int = 20,
     sort: str = "-borrowed_at",
     cursor: Optional[str] = None,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """List borrow history for a specific member."""
-    service = BorrowService(db)
+    service = BorrowService(uow)
     try:
         return service.list_borrows(
             member_id=member_id, offset=offset, limit=limit, sort=sort, cursor=cursor
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.delete("/{member_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(rate_limit_dependency)])
-def delete_member(member_id: UUID, db: Session = Depends(get_db)):
+def delete_member(
+    member_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Soft delete a member."""
-    service = MemberService(db)
+    service = MemberService(uow, background_tasks)
     success = service.delete_member(member_id)
     if not success:
         raise HTTPException(status_code=404, detail="Member not found or already deleted")
 
+
 @router.post("/{member_id}/restore", response_model=MemberResponse, dependencies=[Depends(rate_limit_dependency)])
-def restore_member(member_id: UUID, db: Session = Depends(get_db)):
+def restore_member(
+    member_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Restore a soft-deleted member."""
-    service = MemberService(db)
+    service = MemberService(uow, background_tasks)
     member = service.restore_member(member_id)
     if not member:
         raise HTTPException(status_code=404, detail="Member not found or not deleted")
     return member
+
+
 @router.get("/export/csv", dependencies=[Depends(rate_limit_dependency)])
-def export_members(db: Session = Depends(get_db)):
+def export_members(uow: UnitOfWork = Depends(get_uow)):
     """Export all members to CSV."""
-    service = MemberService(db)
+    service = MemberService(uow)
     csv_data = service.export_members_csv()
     return Response(
         content=csv_data,
@@ -157,9 +182,13 @@ def export_members(db: Session = Depends(get_db)):
         headers={"Content-Disposition": "attachment; filename=members.csv"}
     )
 
+
 @router.post("/import/csv", response_model=BulkOperationResponse, dependencies=[Depends(rate_limit_dependency)])
-def import_members(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def import_members(
+    file: UploadFile = File(...), 
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Import members from CSV."""
-    service = MemberService(db)
+    service = MemberService(uow)
     content = file.file.read()
     return service.import_members_csv(content)

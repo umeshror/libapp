@@ -5,30 +5,12 @@ from app.domains.books.service import BookService
 from app.domains.members.service import MemberService
 from app.domains.books.schemas import BookCreate
 from app.domains.members.schemas import MemberCreate
-from app.models import Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
-
-# Setup PostgreSQL test DB
-_test_uri = settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test"
-engine = create_engine(_test_uri)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-@pytest.fixture(scope="function")
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(bind=engine)
-
-
-def test_borrow_service_flow(db_session):
-    borrow_service = BorrowService(db_session)
-    book_service = BookService(db_session)
-    member_service = MemberService(db_session)
+def test_borrow_service_flow(uow):
+    borrow_service = BorrowService(uow)
+    book_service = BookService(uow)
+    member_service = MemberService(uow)
 
     # Setup data
     book = book_service.create_book(
@@ -50,7 +32,6 @@ def test_borrow_service_flow(db_session):
     assert borrow_record.status == "borrowed"
 
     # Verify inventory decremented
-    # Need to refresh or fetch fresh
     book_refreshed = book_service.get_book(book.id)
     assert book_refreshed.available_copies == 1
 
@@ -64,10 +45,10 @@ def test_borrow_service_flow(db_session):
     assert book_refreshed.available_copies == 2
 
 
-def test_borrow_limits(db_session):
-    borrow_service = BorrowService(db_session)
-    book_service = BookService(db_session)
-    member_service = MemberService(db_session)
+def test_borrow_limits(uow):
+    borrow_service = BorrowService(uow)
+    book_service = BookService(uow)
+    member_service = MemberService(uow)
 
     member = member_service.create_member(
         MemberCreate(name="Limit Mem", email="limit@e.com")
@@ -99,10 +80,10 @@ def test_borrow_limits(db_session):
         borrow_service.borrow_book(book6.id, member.id)
 
 
-def test_no_inventory(db_session):
-    borrow_service = BorrowService(db_session)
-    book_service = BookService(db_session)
-    member_service = MemberService(db_session)
+def test_no_inventory(uow):
+    borrow_service = BorrowService(uow)
+    book_service = BookService(uow)
+    member_service = MemberService(uow)
 
     book = book_service.create_book(
         BookCreate(
@@ -116,35 +97,27 @@ def test_no_inventory(db_session):
     with pytest.raises(InventoryUnavailableError):
         borrow_service.borrow_book(book.id, member.id)
 
-def test_book_service_details_consolidation(db_session):
-    book_service = BookService(db_session)
-    from app.domains.borrows.repository import BorrowRepository
-    from app.domains.members.repository import MemberRepository
-    from app.domains.borrows.schemas import BorrowRecordCreate
-    
-    borrow_repo = BorrowRepository(db_session)
+
+def test_book_service_details_consolidation(uow):
+    book_service = BookService(uow)
+    borrow_service = BorrowService(uow)
+    member_service = MemberService(uow)
     
     # Setup data
     book = book_service.create_book(
         BookCreate(title="Consolidated Book", author="Author", isbn="C1", total_copies=5, available_copies=5)
     )
-    member = MemberRepository(db_session).create(
+    member = member_service.create_member(
         MemberCreate(name="Tester", email="test@e.com")
     )
+
+    # 1. Active borrow (Member 1)
+    b1 = borrow_service.borrow_book(book.id, member.id)
     
-    # 1. Active borrow
-    borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
-    
-    # 2. Returned borrow (history)
-    b2 = borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
-    from app.models.borrow_record import BorrowRecord, BorrowStatus
-    from datetime import datetime, timezone
-    
-    db_borrow = db_session.get(BorrowRecord, b2.id)
-    db_borrow.status = BorrowStatus.RETURNED
-    db_borrow.returned_at = datetime.now(timezone.utc)
-    db_session.add(db_borrow)
-    db_session.commit()
+    # 2. Returned borrow (Member 2)
+    member2 = member_service.create_member(MemberCreate(name="Tester 2", email="test2@e.com"))
+    b2 = borrow_service.borrow_book(book.id, member2.id)
+    borrow_service.return_book(b2.id)
     
     # Test Service Method
     details = book_service.get_book_details(book.id)
@@ -155,29 +128,20 @@ def test_book_service_details_consolidation(db_session):
     assert details.borrow_history.meta["total"] == 1
     assert details.analytics.total_times_borrowed == 2
 
-def test_member_service_details_consolidation(db_session):
-    member_service = MemberService(db_session)
-    from app.domains.books.repository import BookRepository
-    from app.domains.borrows.repository import BorrowRepository
-    from app.domains.borrows.schemas import BorrowRecordCreate
-    
-    book_repo = BookRepository(db_session)
-    borrow_repo = BorrowRepository(db_session)
+
+def test_member_service_details_consolidation(uow):
+    member_service = MemberService(uow)
+    book_service = BookService(uow)
     
     # Setup data
     member = member_service.create_member(MemberCreate(name="Member Detail Test", email="detail@test.com"))
-    book = book_repo.create(BookCreate(title="B1", author="A1", isbn="ISBN1"))
+    book = book_service.create_book(BookCreate(title="B1", author="A1", isbn="ISBN1"))
     
     # Borrow and return for history
-    b1 = borrow_repo.create(BorrowRecordCreate(book_id=book.id, member_id=member.id))
-    from app.models.borrow_record import BorrowRecord, BorrowStatus
-    from datetime import datetime, timezone
-    
-    db_b = db_session.get(BorrowRecord, b1.id)
-    db_b.status = BorrowStatus.RETURNED
-    db_b.returned_at = datetime.now(timezone.utc)
-    db_session.add(db_b)
-    db_session.commit()
+    from app.domains.borrows.service import BorrowService
+    borrow_service = BorrowService(uow)
+    b1 = borrow_service.borrow_book(book.id, member.id)
+    borrow_service.return_book(b1.id)
     
     # Test Details
     core = member_service.get_member_details(member.id)

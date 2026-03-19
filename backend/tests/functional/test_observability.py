@@ -10,17 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from app.models import Base
 from app.core.config import settings
 
-engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture(scope="function")
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(bind=engine)
+# Use uow fixture from conftest.py
 
 
 def test_health_check_db_status(client):
@@ -38,25 +28,25 @@ def test_correlation_id_middleware(client, caplog):
 
     # 1. Request with explicit ID
     custom_id = "test-cor-id-123"
-    client.get("/health", headers={"X-Request-ID": custom_id})
+    client.get("/health", headers={"X-Correlation-ID": custom_id})
 
     # Verify correlation ID is echoed back in response header
 
-    res = client.get("/health", headers={"X-Request-ID": custom_id})
-    assert res.headers["X-Request-ID"] == custom_id
+    res = client.get("/health", headers={"X-Correlation-ID": custom_id})
+    assert res.headers["X-Correlation-ID"] == custom_id
 
     # 2. Request without ID (Generated)
     res2 = client.get("/health")
-    assert "X-Request-ID" in res2.headers
-    assert len(res2.headers["X-Request-ID"]) > 0
+    assert "X-Correlation-ID" in res2.headers
+    assert len(res2.headers["X-Correlation-ID"]) > 0
 
 
-def test_deadlock_retry_mechanism(db_session):
+def test_deadlock_retry_mechanism(uow):
     """
     Validate deadlock retry works by forcing an OperationalError.
     We mock the repository to raise OperationalError twice, then succeed.
     """
-    borrow_service = BorrowService(db_session)
+    borrow_service = BorrowService(uow)
 
     # Side effect: 2 OperationalErrors, then a mock book to verify retry behavior
     mock_book = MagicMock()
@@ -70,23 +60,23 @@ def test_deadlock_retry_mechanism(db_session):
     ]
 
     with patch.object(
-        borrow_service.book_repo, "get_with_lock", side_effect=side_effect
+        uow.books, "get_with_lock", side_effect=side_effect
     ) as mock_method:
         with patch.object(
-            borrow_service.borrow_repo, "list", return_value={"items": [], "total": 0}
+            uow.borrows, "list", return_value={"items": [], "total": 0}
         ):
-            with patch.object(borrow_service.member_repo, "get", return_value=True):
+            with patch.object(uow.members, "get", return_value=True):
                 with patch.object(
-                    borrow_service.borrow_repo, "get_active_borrow", return_value=None
+                    uow.borrows, "get_active_borrow", return_value=None
                 ):
                     # Mock session.refresh to set an ID on the record
                     def refresh_side_effect(instance):
                         instance.id = uuid.uuid4()
 
-                    with patch.object(borrow_service.session, "add"):
-                        with patch.object(borrow_service.session, "commit"):
+                    with patch.object(uow.session, "add"):
+                        with patch.object(uow.session, "commit"):
                             with patch.object(
-                                borrow_service.session,
+                                uow.session,
                                 "refresh",
                                 side_effect=refresh_side_effect,
                             ):

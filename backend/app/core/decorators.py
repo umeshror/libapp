@@ -22,11 +22,19 @@ def db_retry(max_retries=3, base_delay=0.1, max_delay=1.0):
                     return func(*args, **kwargs)
                 except (OperationalError, StaleDataError) as e:
                     # Rollback session if it exists on self (args[0])
-                    if args and hasattr(args[0], "session"):
-                        try:
-                            args[0].session.rollback()
-                        except Exception:
-                            pass
+                    if args:
+                        obj = args[0]
+                        session = None
+                        if hasattr(obj, "uow") and hasattr(obj.uow, "session"):
+                            session = obj.uow.session
+                        elif hasattr(obj, "session"):
+                            session = obj.session
+                        
+                        if session:
+                            try:
+                                session.rollback()
+                            except Exception:
+                                pass
 
                     if retries >= max_retries:
                         logger.error(

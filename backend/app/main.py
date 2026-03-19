@@ -6,14 +6,16 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.shared.deps import get_db
+from app.shared.deps import get_uow
 from app.api.v1 import v1_router
 from app.core.exceptions import LibraryAppError
 from app.api.exception_handlers import library_exception_handler
-from app.core.logging import logger, correlation_id_ctx
+from app.core.logging import logger
 from app.core.metrics import metrics
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.security import rate_limit_dependency
+from app.core.middleware.monitoring import MonitoringMiddleware
+from app.shared.uow import UnitOfWork
 
 
 def get_application() -> FastAPI:
@@ -24,7 +26,7 @@ def get_application() -> FastAPI:
         version="1.0.0",
     )
 
-    # Middleware: CORS
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=[
@@ -40,30 +42,8 @@ def get_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Middleware: Correlation ID & Logging
-    @application.middleware("http")
-    async def request_middleware(request: Request, call_next):
-        corr_id = request.headers.get("X-Correlation-ID", str(uuid.uuid4()))
-        token = correlation_id_ctx.set(corr_id)
 
-        start_time = time.time()
-        logger.info(f"Started {request.method} {request.url.path}")
-
-        try:
-            response = await call_next(request)
-            process_time = time.time() - start_time
-
-            response.headers["X-Correlation-ID"] = corr_id
-
-            logger.info(
-                f"Completed {request.method} {request.url.path} Status: {response.status_code} Duration: {process_time:.4f}s"
-            )
-            return response
-        except Exception as e:
-            logger.error(f"Request failed: {str(e)}")
-            raise e
-        finally:
-            correlation_id_ctx.reset(token)
+    application.add_middleware(MonitoringMiddleware)
 
     # Versioned API routes
     application.include_router(v1_router, prefix="/api/v1")
@@ -75,12 +55,12 @@ def get_application() -> FastAPI:
     application.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore
     application.add_exception_handler(Exception, global_exception_handler)
 
-    # Infrastructure endpoints (un-versioned)
+
     @application.get("/health")
-    def health_check(db: Session = Depends(get_db)):
+    def health_check(uow: UnitOfWork = Depends(get_uow)):
         """Database connectivity health check."""
         try:
-            db.execute(text("SELECT 1"))
+            uow.session.execute(text("SELECT 1"))
             return {"status": "ok", "db": "connected"}
         except Exception as e:
             logger.error(f"Health check failed: {e}")

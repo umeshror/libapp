@@ -1,10 +1,10 @@
 """Borrow domain API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from typing import Optional
 from uuid import UUID
-from app.shared.deps import get_db
+from app.shared.deps import get_uow
+from app.shared.uow import UnitOfWork
 from app.shared.schemas import PaginatedResponse
 from app.domains.borrows.service import BorrowService
 from app.domains.borrows.schemas import BorrowRequest, BorrowRecordResponse
@@ -14,9 +14,13 @@ router = APIRouter()
 
 
 @router.post("/", response_model=BorrowRecordResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency)])
-def create_borrow(borrow_in: BorrowRequest, db: Session = Depends(get_db)):
+def create_borrow(
+    borrow_in: BorrowRequest, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Borrow a book for a member."""
-    service = BorrowService(db)
+    service = BorrowService(uow, background_tasks)
     return service.borrow_book(borrow_in.book_id, borrow_in.member_id)
 
 
@@ -27,10 +31,10 @@ def list_borrows(
     q: Optional[str] = None,
     sort: str = "-borrowed_at",
     cursor: Optional[str] = None,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """List all borrow records (active and returned)."""
-    service = BorrowService(db)
+    service = BorrowService(uow)
     try:
         return service.list_borrows(
             offset=offset, limit=limit, query=q, sort=sort, cursor=cursor
@@ -40,9 +44,13 @@ def list_borrows(
 
 
 @router.post("/{borrow_id}/return/", response_model=BorrowRecordResponse, dependencies=[Depends(rate_limit_dependency)])
-def return_borrow(borrow_id: UUID, db: Session = Depends(get_db)):
+def return_borrow(
+    borrow_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Return a borrowed book."""
-    service = BorrowService(db)
+    service = BorrowService(uow, background_tasks)
     return service.return_book(borrow_id)
 
 
@@ -52,10 +60,10 @@ def list_overdue_borrows(
     limit: int = 20,
     sort: str = "-due_date",
     cursor: Optional[str] = None,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """List all overdue borrows."""
-    service = BorrowService(db)
+    service = BorrowService(uow)
     try:
         return service.list_borrows(
             overdue=True, offset=offset, limit=limit, sort=sort, cursor=cursor

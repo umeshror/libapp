@@ -38,6 +38,7 @@ class MembershipAnalyticsSummary(BaseModel):
     total_books_borrowed: int
     overdue_rate_percent: float
     risk_level: str
+    total_fines_accrued: float
 
 
 class MemberCoreDetails(BaseModel):
@@ -83,4 +84,5 @@ class MemberAnalyticsResponse(BaseModel):
     favorite_author: Optional[str]
     borrow_frequency_per_month: float
     risk_level: str
+    total_fines_accrued: float
     activity_trend: List[ActivityTrendItem]

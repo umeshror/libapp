@@ -6,10 +6,6 @@ from app.domains.members.service import MemberService
 from app.domains.books.repository import BookRepository
 from app.domains.books.schemas import BookCreate, BookUpdate
 from app.domains.members.schemas import MemberCreate
-from app.models import Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.core.config import settings
 from app.core.exceptions import (
     MemberNotFoundError,
     BookNotFoundError,
@@ -17,23 +13,11 @@ from app.core.exceptions import (
     AlreadyReturnedError,
 )
 
-engine = create_engine(settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test")
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
-@pytest.fixture(scope="module")
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    yield session
-    session.close()
-    Base.metadata.drop_all(bind=engine)
-
-
-def test_borrow_service_edge_cases(db_session):
-    borrow_service = BorrowService(db_session)
-    book_service = BookService(db_session)
-    member_service = MemberService(db_session)
+def test_borrow_service_edge_cases(uow):
+    borrow_service = BorrowService(uow)
+    book_service = BookService(uow)
+    member_service = MemberService(uow)
 
     # Setup
     book = book_service.create_book(
@@ -69,19 +53,17 @@ def test_borrow_service_edge_cases(db_session):
         borrow_service.return_book(uuid4())
 
     # 5. Return already returned
-    borrow = borrow_service.borrow_repo.get_active_borrow(book.id, member.id)
+    borrow = uow.borrows.get_active_borrow(book.id, member.id)
     # Return once
     borrow_service.return_book(borrow.id)
     # Return again
     with pytest.raises(AlreadyReturnedError):
         borrow_service.return_book(borrow.id)
 
-    # 6. Missing book during return cannot be tested via DB due to FK CASCADE constraints.
-    # This branch requires a mock-based unit test for full coverage.
 
-
-def test_book_repository_edge_cases(db_session):
-    repo = BookRepository(db_session)
+def test_book_repository_edge_cases(uow):
+    # Testing repo directly via uow.books
+    repo = uow.books
 
     # 1. Get invalid ID
     assert repo.get(uuid4()) is None
@@ -99,9 +81,9 @@ def test_book_repository_edge_cases(db_session):
     assert isinstance(result["items"], list)
 
 
-def test_service_wrappers(db_session):
-    book_svc = BookService(db_session)
-    member_svc = MemberService(db_session)
+def test_service_wrappers(uow):
+    book_svc = BookService(uow)
+    member_svc = MemberService(uow)
 
     # Book Service Coverage
     b = book_svc.create_book(BookCreate(title="SVC List", author="A", isbn="LST1"))
@@ -114,13 +96,11 @@ def test_service_wrappers(db_session):
     assert len(member_svc.list_members().data) > 0
     assert member_svc.get_member(m.id) is not None
     assert member_svc.get_member_by_email("lst@e.com") is not None
-    assert member_svc.repo.get_by_email("nonexistent") is None
+    assert uow.members.get_by_email("nonexistent") is None
 
 
-def test_member_repository_coverage(db_session):
-    from app.domains.members.repository import MemberRepository
-
-    repo = MemberRepository(db_session)
+def test_member_repository_coverage(uow):
+    repo = uow.members
     result = repo.list()
     assert isinstance(result, dict)
     assert isinstance(result["items"], list)

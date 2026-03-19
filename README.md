@@ -4,33 +4,24 @@
 ## Demo
 
 ### Dashboard & Analytics
-![Dashboard & Filters](media/feature_1_dashboard_filters_1771967485418.webp)
+![Dashboard & Filters](media/dashboard_and_date_interaction_showcase_1773251809181.webp)
 *Interactive dashboard with real-time metrics and dynamic date filters.*
 
 ### Inventory Management
-![Book Management](media/feature_2_book_management_1771967536244.webp)
+![Book Management](media/book_crud_showcase_1773252026867.webp)
 *Full CRUD lifecycle: Adding, editing, and archiving books with built-in search and sorting.*
 
 ### Deep Dive: Book Details & Navigation
-![Book Details](media/feature_3_book_detail_flow_1771968081157.webp)
+![Book Details](media/book_listing_and_detail_showcase_1773251923813.webp)
 *Detailed book stats, audit trails, and seamless navigation to active borrowers.*
 
 ### Member Management
-![Member Management](media/feature_4_member_management_1771968375705.webp)
+![Member Management](media/member_crud_showcase_1773252297075.webp)
 *Registering, updating, and managing members with full archival support.*
 
 ### Circulation & Member History
-![Member Details & Returns](media/feature_5_member_detail_return_1771969016582.webp)
+![Member Details](media/member_listing_and_detail_showcase_1773252235424.webp)
 *Tracking member borrow history, risk levels, and processing returns directly from profiles.*
-
-<p align="center">
-  <img src="media/dashboard_1771959390949.png" width="45%" alt="Dashboard">
-  <img src="media/bookslist_1771959403674.png" width="45%" alt="Books List">
-</p>
-<p align="center">
-  <img src="media/bookdetail_1771959418170.png" width="45%" alt="Book Detail">
-  <img src="media/memberslist_1771959435520.png" width="45%" alt="Members List">
-</p>
 
 ---
 
@@ -419,6 +410,13 @@ erDiagram
 
 **Services never raise `HTTPException`.** They raise typed domain exceptions (`InventoryUnavailableError`, `BorrowLimitExceededError`, etc.) that are mapped to HTTP responses by a centralized exception handler in `api/exception_handlers.py`. This keeps the service layer fully testable without an HTTP context.
 
+### 🧠 Advanced Behavioral Insights
+Beyond standard inventory, the system implements sophisticated tracking of member reliability and circulation health:
+- **Automated Due Date Management**: Every borrow automatically calculates a due date based on global settings.
+- **Automated Fine Calculation**: Real-time calculation of accrued fines based on configurable daily rates ($1/day standard).
+- **Overdue Severity Breakdown**: Analytics categorize late returns into severity tiers (1-3, 4-7, 7+ days overdue) for administrative prioritization.
+- **Member Risk Profiling**: Members are dynamically assigned risk levels (**LOW**, **MEDIUM**, **HIGH**) based on their historical overdue rates, enabling data-driven circulation policies.
+
 **Repositories never contain business rules.** A repository can tell you how many books are available. It cannot decide whether that number is enough to allow a borrow — that decision lives in the service.
 
 This boundary is the reason the system stays maintainable as it grows. Adding a new feature means touching exactly one domain. Adding a new query means touching exactly one repository. Nothing bleeds.
@@ -673,23 +671,39 @@ Inventory sync: single atomic SQL UPDATE with GREATEST(0, ...)
 
 ---
 
-## 🐍 Standalone Client Demo
+## Standalone Client Demo
 
-To satisfy the "Show how a client might call your service" tip, I've provided a standalone Python script that performs a full end-to-end library workflow (Create Book → Create Member → Borrow → Return).
-
-**Requirements**:
-- The API server must be running (`make start`).
-- `httpx` must be installed (`make install`).
+To satisfy the "Show how a client might call your service" requirement, I've provided a professional-grade standalone Python script that performs an exhaustive end-to-end verification of the system.
 
 **Run the demo**:
 ```bash
 make api-demo
 ```
 
-This script demonstrates:
-- **CRUD Operations**: Programmatic creation of records.
-- **Validation**: Attempting a duplicate borrow to trigger a `400 Bad Request`.
-- **Relationship Management**: Linking members to books via borrow records.
+### What is verified?
+The script automatically tests **14+ critical business scenarios** and generates a professional summary report:
+
+1.  **Core Lifecycle**: Automated creation of books and members, followed by transactional borrow and return operations.
+2.  **Advanced Search & Sort**: Sub-second search (GIN-indexed) and multi-field sorting.
+3.  **Real-time Analytics**: Consolidation of dashboard metrics and recent activity feeds.
+4.  **Exhaustive Business Rules**:
+    - **Inventory Exhaustion**: Verified blocking when no copies remain.
+    - **Borrow Limits**: Enforcement of the 5-book maximum per member.
+    - **Idempotency**: Guardrails against double-returns and duplicate active borrows.
+5.  **Strict Validation**: Pydantic-level rejection of malformed emails, short phone numbers, and invalid inventory counts.
+
+### Summary Report Example
+At the end of the run, the script outputs a clean status table:
+```
+Scenario                                 | Status     | Detail
+--------------------------------------------------------------------------------
+API Health Check                         | PASS       | Connected to DB
+Book Creation                            | PASS       | Title: The Pythonic Way ...
+...
+Inventory Exhaustion                     | PASS       | Correctly Blocked
+Member Borrow Limit                      | PASS       | Blocked at borrow #6
+================================================================================
+```
 
 ---
 

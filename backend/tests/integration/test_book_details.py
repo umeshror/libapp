@@ -1,77 +1,44 @@
 import pytest
-from unittest.mock import patch, MagicMock
 from uuid import uuid4
-from datetime import datetime
-from app.domains.books.schemas import BorrowerInfo, BorrowHistoryItem, BookAnalytics
+from app.domains.books.schemas import BookCreate
+from app.domains.borrows.schemas import BorrowRequest
+from app.domains.borrows.service import BorrowService
+from app.domains.members.schemas import MemberCreate
+from app.domains.members.service import MemberService
+from app.domains.books.service import BookService
 
+def test_get_book_details_full_lifecycle(client, uow):
+    # Setup real data using uow
+    book_service = BookService(uow)
+    member_service = MemberService(uow)
+    borrow_service = BorrowService(uow)
 
-def test_get_book_details_full_lifecycle(client):
-    book_id = uuid4()
-
-    # Mock Data
-    mock_book = MagicMock()
-    mock_book.id = book_id
-    mock_book.title = "Mocked Book"
-    mock_book.author = "Tester"
-    mock_book.isbn = "111-222-333"
-    mock_book.total_copies = 5
-    mock_book.available_copies = 3
-    mock_book.created_at = datetime.utcnow()
-    mock_book.updated_at = datetime.utcnow()
-
-    mock_borrower = BorrowerInfo(
-        borrow_id=uuid4(),
-        member_id=uuid4(),
-        name="Alice",
-        borrowed_at=datetime.utcnow(),
-        due_date=datetime.utcnow(),
-        days_until_due=5,
+    book = book_service.create_book(
+        BookCreate(title="Integration Book", author="Author", isbn="I1", total_copies=5, available_copies=5)
     )
+    member = member_service.create_member(MemberCreate(name="Alice", email="alice@test.com"))
+    
+    # 1. Active borrow
+    b1 = borrow_service.borrow_book(book.id, member.id)
+    borrow_service.return_book(b1.id)
+    
+    # 2. Another borrow
+    b2 = borrow_service.borrow_book(book.id, member.id)
 
-    mock_history_item = BorrowHistoryItem(
-        member_id=uuid4(),
-        member_name="Bob",
-        borrowed_at=datetime.utcnow(),
-        returned_at=datetime.utcnow(),
-        duration_days=10,
-    )
+    # Call API
+    response = client.get(f"/api/v1/books/{book.id}/details")
+    assert response.status_code == 200
+    data = response.json()
 
-    mock_analytics = BookAnalytics(
-        total_times_borrowed=10,
-        average_borrow_duration=5.5,
-        last_borrowed_at=datetime.utcnow(),
-        popularity_rank=1,
-        availability_status="AVAILABLE",
-        longest_borrow_duration=12,
-        shortest_borrow_duration=2,
-        return_delay_count=0,
-    )
-
-    with patch("app.domains.books.service.BookRepository") as MockRepo:
-        repo_instance = MockRepo.return_value
-        repo_instance.get_with_lock.return_value = mock_book
-        repo_instance.get_current_borrowers.return_value = [mock_borrower]
-        repo_instance.get_borrow_history.return_value = ([mock_history_item], 50)
-        repo_instance.get_analytics.return_value = mock_analytics
-
-        # Call API
-        response = client.get(f"/api/v1/books/{book_id}/details")
-        assert response.status_code == 200
-        data = response.json()
-
-        # Verify
-        assert data["book"]["title"] == "Mocked Book"
-        assert len(data["current_borrowers"]) == 1
-        assert data["current_borrowers"][0]["name"] == "Alice"
-        assert data["borrow_history"]["meta"]["total"] == 50
-        assert data["analytics"]["popularity_rank"] == 1
+    # Verify
+    assert data["book"]["title"] == "Integration Book"
+    assert len(data["current_borrowers"]) == 1
+    assert data["current_borrowers"][0]["name"] == "Alice"
+    assert data["borrow_history"]["meta"]["total"] == 1
+    assert data["analytics"]["total_times_borrowed"] == 2
 
 
 def test_get_book_details_not_found(client):
-    with patch("app.domains.books.service.BookRepository") as MockRepo:
-        repo_instance = MockRepo.return_value
-        repo_instance.get_with_lock.return_value = None
-
-        uuid = uuid4()
-        response = client.get(f"/api/v1/books/{uuid}/details")
-        assert response.status_code == 404
+    uuid = uuid4()
+    response = client.get(f"/api/v1/books/{uuid}/details")
+    assert response.status_code == 404

@@ -15,25 +15,11 @@ from app.core.exceptions import (
     AlreadyReturnedError,
     ActiveBorrowExistsError,
 )
+from app.shared.uow import UnitOfWork
 
 _test_uri = settings.DATABASE_URL.rsplit("/", 1)[0] + "/library_test"
-engine = create_engine(_test_uri)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
-@pytest.fixture(scope="function")
-def db_session():
-    """
-    Creates a new database session for a test.
-    Drops all tables after test to ensure isolation.
-    """
-    Base.metadata.create_all(bind=engine)
-    session = TestingSessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-        Base.metadata.drop_all(bind=engine)
+# Use the uow fixture from conftest.py instead of local session.
 
 
 # -----------------------------------------------------------------------------
@@ -41,15 +27,15 @@ def db_session():
 # -----------------------------------------------------------------------------
 
 
-def test_borrow_invariants(db_session):
+def test_borrow_invariants(uow):
     """
     Verifies that borrowing maintains inventory invariants:
     - Available copies decrement by 1.
     - Borrow record is created with 'borrowed' status.
     """
-    borrow_svc = BorrowService(db_session)
-    book_svc = BookService(db_session)
-    member_svc = MemberService(db_session)
+    borrow_svc = BorrowService(uow)
+    book_svc = BookService(uow)
+    member_svc = MemberService(uow)
 
     # Setup
     book = book_svc.create_book(
@@ -74,7 +60,7 @@ def test_borrow_invariants(db_session):
         "Invariant Violated: Available copies did not decrement."
     )
 
-    borrows_result = borrow_svc.borrow_repo.list(member_id=member.id)
+    borrows_result = uow.borrows.list(member_id=member.id)
     borrows = borrows_result["items"]
     assert len(borrows) == 1
     assert borrows[0].status == "borrowed"
@@ -85,13 +71,13 @@ def test_borrow_invariants(db_session):
 # -----------------------------------------------------------------------------
 
 
-def test_full_borrow_return_cycle(db_session):
+def test_full_borrow_return_cycle(uow):
     """
     Tests the complete lifecycle: Borrow -> Return -> Inventory Restoration.
     """
-    borrow_svc = BorrowService(db_session)
-    book_svc = BookService(db_session)
-    member_svc = MemberService(db_session)
+    borrow_svc = BorrowService(uow)
+    book_svc = BookService(uow)
+    member_svc = MemberService(uow)
 
     book = book_svc.create_book(
         BookCreate(
@@ -136,9 +122,9 @@ def test_concurrent_borrow_race_condition():
 
     # Setup Data (Outside threads)
     Base.metadata.create_all(bind=concurrent_engine)
-    setup_session = ConcurrentSessionLocal()
-    book_svc = BookService(setup_session)
-    member_svc = MemberService(setup_session)
+    setup_uow = UnitOfWork(ConcurrentSessionLocal)
+    book_svc = BookService(setup_uow)
+    member_svc = MemberService(setup_uow)
 
     book = book_svc.create_book(
         BookCreate(
@@ -155,13 +141,16 @@ def test_concurrent_borrow_race_condition():
     book_id = book.id
     m1_id = member1.id
     m2_id = member2.id
-    setup_session.close()
+    # No need to close setup_uow explicitly if it's just a wrapper, 
+    # but we should ensure the session is disposed if we created one.
+    # Actually setup_uow created a session.
 
     results = []
 
     def attempt_borrow(member_id):
-        session = ConcurrentSessionLocal()
-        svc = BorrowService(session)
+        from app.shared.uow import UnitOfWork
+        uow_local = UnitOfWork(ConcurrentSessionLocal)
+        svc = BorrowService(uow_local)
         try:
             svc.borrow_book(book_id, member_id)
             results.append("success")
@@ -169,8 +158,6 @@ def test_concurrent_borrow_race_condition():
             results.append("inventory_error")
         except Exception as e:
             results.append(f"error: {e}")
-        finally:
-            session.close()
 
     t1 = threading.Thread(target=attempt_borrow, args=(m1_id,))
     t2 = threading.Thread(target=attempt_borrow, args=(m2_id,))
@@ -180,8 +167,8 @@ def test_concurrent_borrow_race_condition():
     t1.join()
     t2.join()
 
-    # Cleanup
-    Base.metadata.drop_all(bind=concurrent_engine)
+    # Avoid dropping tables here as it breaks subsequent tests in the same suite
+    # Base.metadata.drop_all(bind=concurrent_engine)
 
     assert results.count("success") == 1, (
         f"Expected 1 success, got {results.count('success')} | Full: {results}"
@@ -196,13 +183,13 @@ def test_concurrent_borrow_race_condition():
 # -----------------------------------------------------------------------------
 
 
-def test_double_return_prevention(db_session):
+def test_double_return_prevention(uow):
     """
     Ensures a book cannot be returned twice (idempotency/error handling).
     """
-    borrow_svc = BorrowService(db_session)
-    book_svc = BookService(db_session)
-    member_svc = MemberService(db_session)
+    borrow_svc = BorrowService(uow)
+    book_svc = BookService(uow)
+    member_svc = MemberService(uow)
 
     book = book_svc.create_book(
         BookCreate(
@@ -231,13 +218,13 @@ def test_double_return_prevention(db_session):
 # -----------------------------------------------------------------------------
 
 
-def test_borrow_limit_enforcement(db_session):
+def test_borrow_limit_enforcement(uow):
     """
     Ensures a member cannot borrow more than 5 books.
     """
-    borrow_svc = BorrowService(db_session)
-    book_svc = BookService(db_session)
-    member_svc = MemberService(db_session)
+    borrow_svc = BorrowService(uow)
+    book_svc = BookService(uow)
+    member_svc = MemberService(uow)
 
     member = member_svc.create_member(MemberCreate(name="Max Mem", email="max@e.com"))
 

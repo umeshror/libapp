@@ -9,6 +9,7 @@ from app.models.book import Book
 from app.domains.members.schemas import MemberCreate, MemberResponse
 from app.shared.pagination import encode_cursor, decode_cursor
 from app.shared.audit import log_audit_event
+from app.core.config import settings
 
 
 class MemberRepository:
@@ -17,65 +18,40 @@ class MemberRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, obj_in: MemberCreate) -> MemberResponse:
+    def create(self, obj_in: MemberCreate) -> Member:
         db_obj = Member(name=obj_in.name, email=obj_in.email, phone=obj_in.phone)
         self.session.add(db_obj)
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(db_obj)
-        
-        log_audit_event(
-            self.session,
-            entity_type="member",
-            entity_id=db_obj.id,
-            action="create",
-            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        
-        return MemberResponse.model_validate(db_obj)
+        return db_obj
 
-    def get(self, id: UUID, include_deleted: bool = False) -> Optional[MemberResponse]:
+    def get(self, id: UUID, include_deleted: bool = False) -> Optional[Member]:
         statement = select(Member).where(Member.id == id)
         if not include_deleted:
             statement = statement.where(Member.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return MemberResponse.model_validate(result)
-        return None
+        return result
 
-    def get_by_email(self, email: str, include_deleted: bool = False) -> Optional[MemberResponse]:
+    def get_by_email(self, email: str, include_deleted: bool = False) -> Optional[Member]:
         statement = select(Member).where(Member.email == email)
         if not include_deleted:
             statement = statement.where(Member.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return MemberResponse.model_validate(result)
-        return None
-    def update(self, member_id: UUID, data: dict) -> Optional[MemberResponse]:
+        return result
+    def update(self, member_id: UUID, data: dict) -> Optional[Member]:
         db_obj = self.session.get(Member, member_id)
         if not db_obj:
             return None
         
-        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
         for field, value in data.items():
             if hasattr(db_obj, field):
                 setattr(db_obj, field, value)
         
         db_obj.updated_at = datetime.now(timezone.utc)
-        self.session.commit()
+        self.session.add(db_obj)
+        self.session.flush()
         self.session.refresh(db_obj)
-        
-        log_audit_event(
-            self.session,
-            entity_type="member",
-            entity_id=db_obj.id,
-            action="update",
-            old_state=old_state,
-            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        
-        return MemberResponse.model_validate(db_obj)
+        return db_obj
 
     def list(
         self,
@@ -157,7 +133,7 @@ class MemberRepository:
         return list(self.session.execute(stmt).scalars().all())
 
     def bulk_create(self, members_in: List[MemberCreate]) -> Tuple[int, int, List[dict]]:
-        """Perform batch inserts with individual audit logging."""
+        """Perform batch inserts. Audit logging should be handled by service."""
         successful = 0
         failed = 0
         errors = []
@@ -171,21 +147,11 @@ class MemberRepository:
                 )
                 self.session.add(db_obj)
                 self.session.flush()
-                
-                log_audit_event(
-                    self.session,
-                    entity_type="member",
-                    entity_id=db_obj.id,
-                    action="bulk_import",
-                    new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
-                )
                 successful += 1
             except Exception as e:
-                self.session.rollback()
                 failed += 1
                 errors.append({"row": i, "error": str(e)})
         
-        self.session.commit()
         return successful, failed, errors
 
     def delete(self, id: UUID) -> bool:
@@ -193,40 +159,20 @@ class MemberRepository:
         if not db_obj or db_obj.deleted_at:
             return False
 
-        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
         db_obj.deleted_at = datetime.now(timezone.utc)
-        self.session.commit()
-
-        log_audit_event(
-            self.session,
-            entity_type="member",
-            entity_id=db_obj.id,
-            action="delete",
-            old_state=old_state,
-            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
+        self.session.add(db_obj)
+        self.session.flush()
         return True
 
-    def restore(self, id: UUID) -> Optional[MemberResponse]:
+    def restore(self, id: UUID) -> Optional[Member]:
         db_obj = self.session.get(Member, id)
         if not db_obj or not db_obj.deleted_at:
             return None
 
-        old_state = MemberResponse.model_validate(db_obj).model_dump(mode="json")
         db_obj.deleted_at = None
-        self.session.commit()
-
-        log_audit_event(
-            self.session,
-            entity_type="member",
-            entity_id=db_obj.id,
-            action="restore",
-            old_state=old_state,
-            new_state=MemberResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        return MemberResponse.model_validate(db_obj)
+        self.session.add(db_obj)
+        self.session.flush()
+        return db_obj
 
     def get_core_stats(self, member_id: UUID) -> dict:
         """
@@ -276,10 +222,27 @@ class MemberRepository:
         )
         overdue_rate = (overdue_total / total * 100) if total > 0 else 0.0
 
+        # Calculate total fines
+        now = datetime.now(timezone.utc)
+        overdue_days_expr = func.extract("day", func.coalesce(BorrowRecord.returned_at, now) - BorrowRecord.due_date)
+        total_fines = (
+            self.session.execute(
+                select(func.sum(overdue_days_expr * settings.DAILY_FINE_AMOUNT))
+                .where(
+                    and_(
+                        BorrowRecord.member_id == member_id,
+                        overdue_days_expr > 0
+                    )
+                )
+            ).scalar()
+            or 0.0
+        )
+
         return {
             "active_borrows_count": active_count,
             "total_books_borrowed": total,
             "overdue_rate_percent": round(overdue_rate, 2),
+            "total_fines_accrued": round(float(total_fines), 2),
         }
 
     def get_borrow_history(

@@ -1,10 +1,10 @@
 """Analytics domain API endpoints."""
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.orm import Session
 from datetime import date
 from typing import Optional
-from app.shared.deps import get_db
+from app.shared.deps import get_uow
+from app.shared.uow import UnitOfWork
 from app.domains.analytics.service import AnalyticsService
 from app.domains.analytics.schemas import AnalyticsSummaryResponse
 from app.core.logging import logger
@@ -20,13 +20,13 @@ def get_analytics_summary(
     to_date: Optional[date] = Query(
         None, alias="to", description="End date (YYYY-MM-DD)"
     ),
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """
     Get advanced analytics summary for the dashboard.
     Defaults to the last 30 days if dates are not provided.
     """
-    service = AnalyticsService(db)
+    service = AnalyticsService(uow)
 
     if from_date and to_date and from_date > to_date:
         raise HTTPException(

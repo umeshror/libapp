@@ -181,6 +181,7 @@ export interface MembershipAnalyticsSummary {
     total_books_borrowed: number;
     overdue_rate_percent: number;
     risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+    total_fines_accrued: number;
 }
 
 export interface MemberCoreDetails {
@@ -223,5 +224,6 @@ export interface MemberAnalyticsResponse {
     favorite_author: string | null;
     borrow_frequency_per_month: number;
     risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+    total_fines_accrued: number;
     activity_trend: ActivityTrendItem[];
 }

@@ -26,10 +26,10 @@ class TestBookRepositoryMock(unittest.TestCase):
 
         result = self.repo.create(book_in)
 
-        self.mock_session.add.assert_called_once()
-        self.mock_session.commit.assert_called_once()
+        self.mock_session.add.assert_called()
+        self.mock_session.flush.assert_called_once()
         self.mock_session.refresh.assert_called_once()
-        self.assertIsInstance(result, BookResponse)
+        self.assertIsInstance(result, Book)
         self.assertEqual(result.title, "Mock Book")
         self.assertIsNotNone(result.id)
         self.assertIsNotNone(result.created_at)

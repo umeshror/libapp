@@ -15,32 +15,29 @@ class BorrowRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, obj_in: BorrowRecordCreate) -> BorrowRecordResponse:
+    def create(self, obj_in: BorrowRecordCreate) -> BorrowRecord:
         db_obj = BorrowRecord(
             book_id=obj_in.book_id,
             member_id=obj_in.member_id,
             status=BorrowStatus.BORROWED,
         )
         self.session.add(db_obj)
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(db_obj)
-        # Eager load for response
-        return self.get_by_id(db_obj.id)  # type: ignore
+        return db_obj
 
-    def get_by_id(self, id: UUID) -> Optional[BorrowRecordResponse]:
+    def get_by_id(self, id: UUID) -> Optional[BorrowRecord]:
         statement = (
             select(BorrowRecord)
             .options(joinedload(BorrowRecord.book), joinedload(BorrowRecord.member))
             .where(BorrowRecord.id == id)
         )
         result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return BorrowRecordResponse.model_validate(result)
-        return None
+        return result
 
     def get_active_borrow(
         self, book_id: UUID, member_id: UUID
-    ) -> Optional[BorrowRecordResponse]:
+    ) -> Optional[BorrowRecord]:
         """Find an active (not returned) borrow for a specific book-member pair."""
         statement = select(BorrowRecord).where(
             and_(
@@ -50,9 +47,7 @@ class BorrowRepository:
             )
         )
         result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return BorrowRecordResponse.model_validate(result)
-        return None
+        return result
 
     def get_by_id_with_lock(self, id: UUID) -> Optional[BorrowRecord]:
         """

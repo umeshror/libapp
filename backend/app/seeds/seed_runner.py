@@ -46,11 +46,12 @@ def clear_data(db: SessionLocal):
         raise e
 
 
+from app.shared.uow import UnitOfWork
+
 def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False, force: bool = False):
     logger.info(f"Starting seeding for scenario: {scenario_name}")
 
     if not force:
-        # Environment Check
         env = os.getenv("ENVIRONMENT", "development")
         if env == "production":
             logger.error("Cannot run seeding in production environment!")
@@ -63,41 +64,36 @@ def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False, fo
         sys.exit(1)
 
     config = SCENARIOS[scenario_name]
-
-    # Initialize Faker with deterministic seed
     faker = Faker()
     Faker.seed(42)
 
-    db = SessionLocal()
+    uow = UnitOfWork(SessionLocal)
 
     try:
-        if if_empty:
-            if not is_db_empty(db):
-                logger.info("Database is not empty. Skipping seeding as --if-empty was specified.")
-                return
+        with uow:
+            if if_empty:
+                if not is_db_empty(uow.session):
+                    logger.info("Database is not empty. Skipping seeding as --if-empty was specified.")
+                    return
 
-        if clear:
-            clear_data(db)
+            if clear:
+                clear_data(uow.session)
 
         # 1. Check if high_scale
         if scenario_name == "high_scale":
-            seed_high_scale(db, config, faker)
+            with uow:
+                seed_high_scale(uow.session, config, faker)
             return
 
         # 1. Seed Books
-        seed_books(db, config["books"], faker)
+        seed_books(uow, config["books"], faker)
 
         # 2. Seed Members
-        seed_members(db, config["members"], faker)
+        seed_members(uow, config["members"], faker)
 
-        # 3. Seed Borrows (depends on books and members)
-        # We assume if books/members exist, we can try to seed borrows.
-        # Idempotency for borrows is harder (checking exact counts),
-        # so we rely on the seeder to just add more if needed or skipping if saturated.
-        # But for 'borrows', our seeder is currently just 'create N new ones'.
-        # To be idempotent, we should check current counts.
+        # 3. Seed Borrows
         seed_borrows(
-            db,
+            uow,
             active_count=config["active_borrows"],
             returned_count=config["returned_borrows"],
             overdue_count=config["overdue_borrows"],
@@ -106,10 +102,11 @@ def run_seed(scenario_name: str, clear: bool = False, if_empty: bool = False, fo
 
     except Exception as e:
         logger.error(f"Seeding failed: {e}")
-        db.rollback()
+        # uow handles rollback on exception if used in 'with' block, 
+        # but here we are calling seeders outside a single global 'with' for some parts.
+        # Actually seeders have their own 'with uow' blocks.
         sys.exit(1)
     finally:
-        db.close()
         logger.info("Seeding completed.")
 
 

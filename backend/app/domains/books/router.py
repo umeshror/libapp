@@ -1,13 +1,13 @@
 """Book domain API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from uuid import UUID
 from typing import Optional
-from app.shared.deps import get_db
+from app.shared.deps import get_uow
+from app.shared.uow import UnitOfWork
 from app.shared.schemas import PaginatedResponse, BulkOperationResponse
 from app.domains.books.service import BookService
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response
 from fastapi import UploadFile, File
 from app.domains.books.schemas import (
     BookCreate, BookUpdate, BookResponse, BookDetailResponse,
@@ -18,8 +18,12 @@ router = APIRouter()
 
 
 @router.post("/", response_model=BookResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(rate_limit_dependency)])
-def create_book(book_in: BookCreate, db: Session = Depends(get_db)):
-    service = BookService(db)
+def create_book(
+    book_in: BookCreate, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
+    service = BookService(uow, background_tasks)
     return service.create_book(book_in)
 
 
@@ -30,9 +34,9 @@ def list_books(
     q: Optional[str] = None,
     sort: str = "-created_at",
     cursor: Optional[str] = None,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
-    service = BookService(db)
+    service = BookService(uow)
     try:
         return service.list_books(
             offset=offset, limit=limit, query=q, sort=sort, cursor=cursor
@@ -42,8 +46,8 @@ def list_books(
 
 
 @router.get("/{book_id}", response_model=BookResponse)
-def get_book(book_id: UUID, db: Session = Depends(get_db)):
-    service = BookService(db)
+def get_book(book_id: UUID, uow: UnitOfWork = Depends(get_uow)):
+    service = BookService(uow)
     book = service.get_book(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -51,8 +55,13 @@ def get_book(book_id: UUID, db: Session = Depends(get_db)):
 
 
 @router.put("/{book_id}", response_model=BookResponse, dependencies=[Depends(rate_limit_dependency)])
-def update_book(book_id: UUID, book_in: BookUpdate, db: Session = Depends(get_db)):
-    service = BookService(db)
+def update_book(
+    book_id: UUID, 
+    book_in: BookUpdate, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
+    service = BookService(uow, background_tasks)
     book = service.update_book(book_id, book_in)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -64,31 +73,44 @@ def get_book_details(
     book_id: UUID,
     history_limit: int = 10,
     history_offset: int = 0,
-    db: Session = Depends(get_db),
+    uow: UnitOfWork = Depends(get_uow),
 ):
     """Get comprehensive book details with borrowers, history, and analytics."""
-    service = BookService(db)
+    service = BookService(uow)
     return service.get_book_details(book_id, history_limit, history_offset)
+
+
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(rate_limit_dependency)])
-def delete_book(book_id: UUID, db: Session = Depends(get_db)):
+def delete_book(
+    book_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Soft delete a book."""
-    service = BookService(db)
+    service = BookService(uow, background_tasks)
     success = service.delete_book(book_id)
     if not success:
         raise HTTPException(status_code=404, detail="Book not found or already deleted")
 
+
 @router.post("/{book_id}/restore", response_model=BookResponse, dependencies=[Depends(rate_limit_dependency)])
-def restore_book(book_id: UUID, db: Session = Depends(get_db)):
+def restore_book(
+    book_id: UUID, 
+    background_tasks: BackgroundTasks,
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Restore a soft-deleted book."""
-    service = BookService(db)
+    service = BookService(uow, background_tasks)
     book = service.restore_book(book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Book not found or not deleted")
     return book
+
+
 @router.get("/export/csv", dependencies=[Depends(rate_limit_dependency)])
-def export_books(db: Session = Depends(get_db)):
+def export_books(uow: UnitOfWork = Depends(get_uow)):
     """Export all books to CSV."""
-    service = BookService(db)
+    service = BookService(uow)
     csv_data = service.export_books_csv()
     return Response(
         content=csv_data,
@@ -96,9 +118,13 @@ def export_books(db: Session = Depends(get_db)):
         headers={"Content-Disposition": "attachment; filename=books.csv"}
     )
 
+
 @router.post("/import/csv", response_model=BulkOperationResponse, dependencies=[Depends(rate_limit_dependency)])
-def import_books(file: UploadFile = File(...), db: Session = Depends(get_db)):
+def import_books(
+    file: UploadFile = File(...), 
+    uow: UnitOfWork = Depends(get_uow)
+):
     """Import books from CSV."""
-    service = BookService(db)
+    service = BookService(uow)
     content = file.file.read()
     return service.import_books_csv(content)

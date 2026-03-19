@@ -1,63 +1,54 @@
 import logging
+import uuid
 from datetime import timezone
 from faker import Faker
-from sqlalchemy.orm import Session
-from app.domains.books.service import BookService
-from app.domains.books.schemas import BookCreate
+from app.shared.uow import AbstractUnitOfWork
+from app.models.book import Book
 
 logger = logging.getLogger(__name__)
 
 
-def seed_books(db: Session, count: int, faker: Faker) -> int:
+def seed_books(uow: AbstractUnitOfWork, count: int, faker: Faker) -> int:
     """
-    Seeds books using the BookService.
+    Seeds books using bulk insertion.
     Idempotency: Checks if ISBN exists before creating.
     """
-    service = BookService(db)
     created_count = 0
-
     logger.info(f"Seeding {count} books...")
 
-    for _ in range(count):
-        # Generate all random data upfront to keep RNG sequence identical across runs
-        isbn = faker.isbn13()
-        title = faker.sentence(nb_words=4).rstrip(".")
-        author = faker.name()
-        # Seed random with a deterministic value derived from faker to keep sync
-        total_copies = faker.random_int(min=1, max=10)
-        created_at = faker.date_time_between(
-            start_date="-547d", end_date="now", tzinfo=timezone.utc
-        )
+    with uow:
+        existing_isbns = {b.isbn for b in uow.books.list_all()}
 
-        # Check if book exists
-        if service.get_book_by_isbn(isbn):
-            continue
+    with uow:
+        for _ in range(count):
+            isbn = faker.isbn13()
+            title = faker.sentence(nb_words=4).rstrip(".")
+            author = faker.name()
+            total_copies = faker.random_int(min=1, max=10)
+            created_at = faker.date_time_between(
+                start_date="-547d", end_date="now", tzinfo=timezone.utc
+            )
 
-        book_in = BookCreate(
-            title=title,
-            author=author,
-            isbn=isbn,
-            total_copies=total_copies,
-            available_copies=total_copies,
-        )
+            if isbn in existing_isbns:
+                continue
 
-        try:
-            book_response = service.create_book(book_in)
-
-            # Backdate created_at to simulate history
-            from app.models.book import Book
-
-            book_orm = db.get(Book, book_response.id)
-
-            if book_orm:
-                book_orm.created_at = created_at
-                db.add(book_orm)
-                db.commit()
-
+            book_orm = Book(
+                id=uuid.uuid4(),
+                title=title,
+                author=author,
+                isbn=isbn,
+                total_copies=total_copies,
+                available_copies=total_copies,
+                created_at=created_at
+            )
+            uow.session.add(book_orm)
+            existing_isbns.add(isbn)
             created_count += 1
-        except Exception as e:
-            logger.warning(f"Failed to seed book {isbn}: {e}")
-            continue
+
+            if created_count % 500 == 0:
+                uow.flush()
+
+        uow.commit()
 
     logger.info(f"Successfully seeded {created_count} books.")
     return created_count

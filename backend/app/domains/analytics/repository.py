@@ -17,6 +17,7 @@ from app.domains.analytics.schemas import (
 )
 from app.domains.books.schemas import BookAnalytics
 from app.domains.members.schemas import MemberAnalyticsResponse, ActivityTrendItem
+from app.core.config import settings
 
 
 class AnalyticsRepository:
@@ -333,6 +334,7 @@ class AnalyticsRepository:
         now = datetime.now(timezone.utc)
         diff_expr = func.extract("day", func.coalesce(BorrowRecord.returned_at, now) - BorrowRecord.borrowed_at)
         
+        # 1. Base Stats
         stats_stmt = select(
             func.count(BorrowRecord.id).label("total_count"),
             func.count().filter(BorrowRecord.status == BorrowStatus.BORROWED).label("active_count"),
@@ -348,7 +350,21 @@ class AnalyticsRepository:
             ).label("overdue_count"),
         ).where(BorrowRecord.member_id == member_id)
 
+        # 2. Fines Calculation
+        # For each record: if returned_at > due_date, fine = (returned_at - due_date) * rate
+        # if not returned and due_date < now, fine = (now - due_date) * rate
+        overdue_days_expr = func.extract("day", func.coalesce(BorrowRecord.returned_at, now) - BorrowRecord.due_date)
+        fines_stmt = select(
+            func.sum(
+                case(
+                    (overdue_days_expr > 0, overdue_days_expr * settings.DAILY_FINE_AMOUNT),
+                    else_=0
+                )
+            )
+        ).where(BorrowRecord.member_id == member_id)
+
         stats = self.session.execute(stats_stmt).first()
+        total_fines = self.session.execute(fines_stmt).scalar() or 0.0
 
         fav_author = self.session.execute(
             select(Book.author)
@@ -402,6 +418,7 @@ class AnalyticsRepository:
             favorite_author=fav_author,
             borrow_frequency_per_month=round(freq, 1),
             risk_level=risk_level,
+            total_fines_accrued=round(float(total_fines), 2),
             activity_trend=[ActivityTrendItem(month=t.month, count=t.count) for t in trends],
         )
 

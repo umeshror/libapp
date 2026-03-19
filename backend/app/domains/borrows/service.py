@@ -4,10 +4,8 @@ from datetime import datetime, timedelta, timezone
 import uuid
 from uuid import UUID
 from typing import Optional
-from sqlalchemy.orm import Session
-from app.domains.books.repository import BookRepository
-from app.domains.borrows.repository import BorrowRepository
-from app.domains.members.repository import MemberRepository
+from fastapi import BackgroundTasks
+from app.shared.uow import AbstractUnitOfWork
 from app.domains.borrows.schemas import BorrowRecordResponse
 from app.shared.schemas import PaginatedResponse, PaginationMeta
 from app.models.borrow_record import BorrowRecord, BorrowStatus
@@ -22,16 +20,15 @@ from app.core.exceptions import (
     ActiveBorrowExistsError,
 )
 from app.core.decorators import db_retry, measure_borrow_metrics
+from app.shared.audit import log_audit_event
 
 
 class BorrowService:
-    """Handles borrow/return lifecycle with inventory locking and business rule enforcement."""
+    """Handles borrow/return lifecycle with explicit Unit of Work management."""
 
-    def __init__(self, session: Session):
-        self.session = session
-        self.book_repo = BookRepository(session)
-        self.member_repo = MemberRepository(session)
-        self.borrow_repo = BorrowRepository(session)
+    def __init__(self, uow: AbstractUnitOfWork, background_tasks: Optional[BackgroundTasks] = None):
+        self.uow = uow
+        self.background_tasks = background_tasks
 
     @measure_borrow_metrics
     @db_retry(max_retries=3)
@@ -44,107 +41,108 @@ class BorrowService:
     ) -> BorrowRecordResponse:
         """
         Borrows a book for a member.
-        Enforces:
-        - Max active borrows per member
-        - Available copies > 0
-        - Atomic update of inventory and creation of borrow record
-
-        Args:
-            borrowed_at: Optional override for seeding/migration. Defaults to now.
-            due_date: Optional override for seeding/migration. Defaults to now + 14 days.
+        - Enforces business rules within a session transaction.
+        - Uses pessimistic locking for inventory integrity.
+        - Offloads auditing to background tasks.
         """
-        active_borrows_result = self.borrow_repo.list(
-            member_id=member_id,
-            status=BorrowStatus.BORROWED,
-            limit=1,
-        )
-        active_count = active_borrows_result["total"]
-
-        if active_count >= settings.MAX_ACTIVE_BORROWS:
-            raise BorrowLimitExceededError(
-                f"Member has reached the maximum limit of {settings.MAX_ACTIVE_BORROWS} active borrows."
+        with self.uow:
+            active_borrows_result = self.uow.borrows.list(
+                member_id=member_id,
+                status=BorrowStatus.BORROWED,
+                limit=1,
             )
+            active_count = active_borrows_result["total"]
 
-        member = self.member_repo.get(member_id)
-        if not member:
-            raise MemberNotFoundError("Member not found.")
+            if active_count >= settings.MAX_ACTIVE_BORROWS:
+                raise BorrowLimitExceededError(
+                    f"Member has reached the maximum limit of {settings.MAX_ACTIVE_BORROWS} active borrows."
+                )
 
-        existing_borrow = self.borrow_repo.get_active_borrow(book_id, member_id)
-        if existing_borrow:
-            raise ActiveBorrowExistsError(
-                "Member already has an active borrow for this book."
+            member = self.uow.members.get(member_id)
+            if not member:
+                raise MemberNotFoundError("Member not found.")
+
+            existing_borrow = self.uow.borrows.get_active_borrow(book_id, member_id)
+            if existing_borrow:
+                raise ActiveBorrowExistsError(
+                    "Member already has an active borrow for this book."
+                )
+
+            book = self.uow.books.get_with_lock(book_id)
+            if not book:
+                raise BookNotFoundError("Book not found.")
+
+            if book.available_copies < 1:
+                raise InventoryUnavailableError("No copies available for borrowing.")
+
+            book.available_copies -= 1  # type: ignore
+
+            if not borrowed_at:
+                borrowed_at = datetime.now(timezone.utc)
+
+            if not due_date:
+                due_date = borrowed_at + timedelta(
+                    days=settings.DEFAULT_BORROW_DURATION_DAYS
+                )
+
+            borrow_record = BorrowRecord(
+                id=uuid.uuid4(),
+                book_id=book_id,
+                member_id=member_id,
+                borrowed_at=borrowed_at,
+                due_date=due_date,
+                status=BorrowStatus.BORROWED,
             )
-
-        book = self.book_repo.get_with_lock(book_id)
-        if not book:
-            raise BookNotFoundError("Book not found.")
-
-        if book.available_copies < 1:
-            raise InventoryUnavailableError("No copies available for borrowing.")
-
-        book.available_copies -= 1  # type: ignore
-
-        if not borrowed_at:
-            borrowed_at = datetime.now(timezone.utc)
-
-        if not due_date:
-            due_date = borrowed_at + timedelta(
-                days=settings.DEFAULT_BORROW_DURATION_DAYS
-            )
-
-        borrow_record = BorrowRecord(
-            id=uuid.uuid4(),
-            book_id=book_id,
-            member_id=member_id,
-            borrowed_at=borrowed_at,
-            due_date=due_date,
-            status=BorrowStatus.BORROWED,
-        )
-        self.session.add(borrow_record)
-        self.session.flush()
-
-        response = BorrowRecordResponse.model_validate(borrow_record)
-
-        self.session.commit()
-        return response
+            self.uow.session.add(borrow_record)
+            self.uow.commit()
+            self.uow.refresh(borrow_record)
+            
+            if self.background_tasks:
+                self.background_tasks.add_task(
+                    log_audit_event,
+                    self.uow.session,
+                    "BORROW_CREATE",
+                    str(borrow_record.id),
+                    f"Member {member_id} borrowed book {book_id}"
+                )
+            return BorrowRecordResponse.model_validate(borrow_record)
 
     @measure_borrow_metrics
     @db_retry(max_retries=3)
     def return_book(
         self, borrow_id: UUID, returned_at: Optional[datetime] = None
     ) -> BorrowRecordResponse:
-        """
-        Returns a borrowed book.
-        Enforces:
-        - Updates status to RETURNED
-        - Atomically increments available_copies
+        """Returns a borrowed book."""
+        with self.uow:
+            borrow_record = self.uow.borrows.get_by_id_with_lock(borrow_id)
+            if not borrow_record:
+                raise BorrowRecordNotFoundError("Borrow record not found.")
 
-        Args:
-            returned_at: Optional override for seeding/migration. Defaults to now.
-        """
-        borrow_record = self.borrow_repo.get_by_id_with_lock(borrow_id)
-        if not borrow_record:
-            raise BorrowRecordNotFoundError("Borrow record not found.")
+            if borrow_record.status != BorrowStatus.BORROWED:
+                raise AlreadyReturnedError("Book is already returned.")
 
-        if borrow_record.status != BorrowStatus.BORROWED:
-            raise AlreadyReturnedError("Book is already returned.")
+            borrow_record.status = BorrowStatus.RETURNED  # type: ignore
+            borrow_record.returned_at = returned_at or datetime.now(timezone.utc)  # type: ignore
 
-        borrow_record.status = BorrowStatus.RETURNED  # type: ignore
-        borrow_record.returned_at = returned_at or datetime.now(timezone.utc)  # type: ignore
+            book = self.uow.books.get_with_lock(borrow_record.book_id)  # type: ignore
+            if not book:
+                raise BookNotFoundError(
+                    "Book associated with this borrow record not found."
+                )
 
-        book = self.book_repo.get_with_lock(borrow_record.book_id)  # type: ignore
-        if not book:
-            raise BookNotFoundError(
-                "Book associated with this borrow record not found."
-            )
-
-        book.available_copies += 1  # type: ignore
-
-        self.session.flush()
-        response = BorrowRecordResponse.model_validate(borrow_record)
-
-        self.session.commit()
-        return response
+            book.available_copies += 1  # type: ignore
+            self.uow.commit()
+            self.uow.refresh(borrow_record)
+            
+            if self.background_tasks:
+                self.background_tasks.add_task(
+                    log_audit_event,
+                    self.uow.session,
+                    "BORROW_RETURN",
+                    str(borrow_id),
+                    f"Borrow {borrow_id} returned"
+                )
+            return BorrowRecordResponse.model_validate(borrow_record)
 
     def list_borrows(
         self,
@@ -156,6 +154,7 @@ class BorrowService:
         sort: str = "-borrowed_at",
         cursor: Optional[str] = None,
     ) -> PaginatedResponse[BorrowRecordResponse]:
+        """List borrows using UoW."""
         if limit > 100:
             raise ValueError("Limit cannot exceed 100")
         if offset < 0:
@@ -171,16 +170,17 @@ class BorrowService:
         if sort_field not in allowed:
             raise ValueError(f"Invalid sort field: {sort_field}. Allowed: {allowed}")
 
-        result = self.borrow_repo.list(
-            skip=offset,
-            limit=limit,
-            member_id=member_id,
-            overdue=overdue,
-            query=query,
-            sort_field=sort_field,
-            sort_order=sort_order,
-            cursor=cursor,
-        )
+        with self.uow:
+            result = self.uow.borrows.list(
+                skip=offset,
+                limit=limit,
+                member_id=member_id,
+                overdue=overdue,
+                query=query,
+                sort_field=sort_field,
+                sort_order=sort_order,
+                cursor=cursor,
+            )
 
         items = result["items"]
         total = result["total"]

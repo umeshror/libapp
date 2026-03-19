@@ -17,9 +17,6 @@ def log_audit_event(
     Standardizes the creation of audit logs across the application.
     This should be called within the same transaction as the entity change.
     """
-    # Filter out sensitive fields if necessary (e.g., in a real app)
-    # For this POC, we'll store everything except the binary/internal fields
-    
     audit_entry = AuditLog(
         entity_type=entity_type,
         entity_id=entity_id,
@@ -29,4 +26,3 @@ def log_audit_event(
         actor_id=actor_id,
     )
     session.add(audit_entry)
-    # Important: Do NOT commit here. Let the repository/service handle the transaction.

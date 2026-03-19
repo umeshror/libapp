@@ -19,7 +19,7 @@ class BookRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create(self, obj_in: BookCreate) -> BookResponse:
+    def create(self, obj_in: BookCreate) -> Book:
         db_obj = Book(
             title=obj_in.title,
             author=obj_in.author,
@@ -28,36 +28,22 @@ class BookRepository:
             available_copies=obj_in.available_copies,
         )
         self.session.add(db_obj)
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(db_obj)
         
-        log_audit_event(
-            self.session,
-            entity_type="book",
-            entity_id=db_obj.id,
-            action="create",
-            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        
-        return BookResponse.model_validate(db_obj)
+        return db_obj
 
-    def get(self, id: UUID, include_deleted: bool = False) -> Optional[BookResponse]:
+    def get(self, id: UUID, include_deleted: bool = False) -> Optional[Book]:
         statement = select(Book).where(Book.id == id)
         if not include_deleted:
             statement = statement.where(Book.deleted_at.is_(None))
         result = self.session.execute(statement).scalar_one_or_none()
-        result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return BookResponse.model_validate(result)
-        return None
+        return result
 
-    def get_by_isbn(self, isbn: str) -> Optional[BookResponse]:
+    def get_by_isbn(self, isbn: str) -> Optional[Book]:
         statement = select(Book).where(Book.isbn == isbn)
         result = self.session.execute(statement).scalar_one_or_none()
-        if result:
-            return BookResponse.model_validate(result)
-        return None
+        return result
 
     def get_with_lock(self, id: UUID) -> Optional[Book]:
         """
@@ -83,10 +69,8 @@ class BookRepository:
         Lists books with filtering, sorting, and pagination.
         Returns a dict with items (ORM objects) and total count.
         """
-        # Base query
         stmt = select(Book)
 
-        # Filtering (Search)
         if query:
             search_term = f"%{query}%"
             stmt = stmt.where(
@@ -98,10 +82,8 @@ class BookRepository:
         count_stmt = select(func.count()).select_from(stmt.subquery())
         total = self.session.execute(count_stmt).scalar() or 0
 
-        # Sorting
         sort_column = getattr(Book, sort_field, Book.created_at)
 
-        # Keyset Pagination (Cursor Support)
         if cursor:
             decoded = decode_cursor(cursor)
             if decoded:
@@ -145,7 +127,6 @@ class BookRepository:
 
         results = self.session.execute(stmt).scalars().all()
         
-        # Generate next_cursor if results exist
         next_cursor = None
         if len(results) >= limit:
             last_item = results[-1]
@@ -170,7 +151,7 @@ class BookRepository:
         return list(self.session.execute(stmt).scalars().all())
 
     def bulk_create(self, books_in: List[BookCreate]) -> Tuple[int, int, List[dict]]:
-        """Perform batch inserts with individual audit logging."""
+        """Perform batch inserts. Audit logging should be handled in background by service."""
         successful = 0
         failed = 0
         errors = []
@@ -182,25 +163,18 @@ class BookRepository:
                     author=book_in.author,
                     isbn=book_in.isbn,
                     total_copies=book_in.total_copies,
-                    available_copies=book_in.total_copies, # Fresh import: avail = total
+                    available_copies=book_in.total_copies,
                 )
                 self.session.add(db_obj)
-                self.session.flush() # Get ID without full commit
-                
-                log_audit_event(
-                    self.session,
-                    entity_type="book",
-                    entity_id=db_obj.id,
-                    action="bulk_import",
-                    new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
-                )
+                self.session.flush()
                 successful += 1
             except Exception as e:
-                self.session.rollback()
+                # We don't rollback the whole session here, just record error
+                # If we want partial success, we would need savepoints, 
+                # but for bulk import, usually we want to know what failed.
                 failed += 1
                 errors.append({"row": i, "error": str(e)})
         
-        self.session.commit()
         return successful, failed, errors
 
     def delete(self, id: UUID) -> bool:
@@ -208,65 +182,34 @@ class BookRepository:
         if not db_obj or db_obj.deleted_at:
             return False
 
-        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
         db_obj.deleted_at = datetime.now(timezone.utc)
-        self.session.commit()
-
-        log_audit_event(
-            self.session,
-            entity_type="book",
-            entity_id=db_obj.id,
-            action="delete",
-            old_state=old_state,
-            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
+        self.session.add(db_obj)
+        self.session.flush()
         return True
 
-    def restore(self, id: UUID) -> Optional[BookResponse]:
+    def restore(self, id: UUID) -> Optional[Book]:
         db_obj = self.session.get(Book, id)
         if not db_obj or not db_obj.deleted_at:
             return None
 
-        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
         db_obj.deleted_at = None
-        self.session.commit()
-
-        log_audit_event(
-            self.session,
-            entity_type="book",
-            entity_id=db_obj.id,
-            action="restore",
-            old_state=old_state,
-            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        return BookResponse.model_validate(db_obj)
-    def update(self, id: UUID, obj_in: BookUpdate) -> Optional[BookResponse]:
+        self.session.add(db_obj)
+        self.session.flush()
+        return db_obj
+    def update(self, id: UUID, obj_in: BookUpdate) -> Optional[Book]:
         db_obj = self.session.get(Book, id)
         if not db_obj:
             return None
 
-        old_state = BookResponse.model_validate(db_obj).model_dump(mode="json")
         update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
 
         self.session.add(db_obj)
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(db_obj)
         
-        log_audit_event(
-            self.session,
-            entity_type="book",
-            entity_id=db_obj.id,
-            action="update",
-            old_state=old_state,
-            new_state=BookResponse.model_validate(db_obj).model_dump(mode="json")
-        )
-        self.session.commit()
-        
-        return BookResponse.model_validate(db_obj)
+        return db_obj
 
     def get_current_borrowers(self, book_id: UUID) -> List[BorrowerInfo]:
         """

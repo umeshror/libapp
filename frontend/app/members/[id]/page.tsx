@@ -35,7 +35,8 @@ import {
     Filter,
     ArrowUpDown,
     RotateCcw,
-    Loader2
+    Loader2,
+    DollarSign
 } from 'lucide-react'
 import {
     LineChart,
@@ -432,16 +433,16 @@ export default function MemberDetailPage() {
                                 <p className="text-2xl font-bold">{analytics?.total_books_borrowed}</p>
                             </div>
                             <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+                                <p className="text-xs opacity-70 mb-1">Total Fines</p>
+                                <p className="text-2xl font-bold">${analytics?.total_fines_accrued.toFixed(2)}</p>
+                            </div>
+                            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
                                 <p className="text-xs opacity-70 mb-1">Overdue Rate</p>
                                 <p className="text-2xl font-bold">{analytics?.overdue_rate_percent}%</p>
                             </div>
                             <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
                                 <p className="text-xs opacity-70 mb-1">Avg. Duration</p>
                                 <p className="text-2xl font-bold">{analytics?.average_borrow_duration}d</p>
-                            </div>
-                            <div className="bg-white/10 rounded-xl p-3 backdrop-blur-sm">
-                                <p className="text-xs opacity-70 mb-1">Borrow Freq.</p>
-                                <p className="text-2xl font-bold">{analytics?.borrow_frequency_per_month}/mo</p>
                             </div>
                         </div>
                     </section>
@@ -466,6 +467,13 @@ export default function MemberDetailPage() {
                                     <p className="text-sm font-bold text-slate-900">{analytics?.longest_borrow_duration} Days</p>
                                 </div>
                                 <Clock className="w-5 h-5 text-indigo-300" />
+                            </div>
+                            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                                <div>
+                                    <p className="text-xs text-slate-500 font-medium">Accrued Fines</p>
+                                    <p className="text-sm font-bold text-slate-900">${analytics?.total_fines_accrued.toFixed(2)}</p>
+                                </div>
+                                <DollarSign className="w-5 h-5 text-amber-500" />
                             </div>
                             <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                                 <div>

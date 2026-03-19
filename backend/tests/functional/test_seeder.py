@@ -6,7 +6,7 @@ from app.models.member import Member
 from app.models.borrow_record import BorrowRecord, BorrowStatus
 
 
-def test_seeder_minimal_scenario_idempotency(db_session):
+def test_seeder_minimal_scenario_idempotency(uow):
     """
     Test that the seeder runs successfully and is idempotent.
     """
@@ -21,10 +21,10 @@ def test_seeder_minimal_scenario_idempotency(db_session):
     Faker.seed(42)
 
     # 1. Run seeder first time (minimal scenario)
-    seed_books(db_session, config["books"], faker)
-    seed_members(db_session, config["members"], faker)
+    seed_books(uow, config["books"], faker)
+    seed_members(uow, config["members"], faker)
     seed_borrows(
-        db_session,
+        uow,
         config["active_borrows"],
         config["returned_borrows"],
         config["overdue_borrows"],
@@ -32,9 +32,10 @@ def test_seeder_minimal_scenario_idempotency(db_session):
     )
 
     # Verify counts
-    book_count = db_session.query(Book).count()
-    member_count = db_session.query(Member).count()
-    borrow_count = db_session.query(BorrowRecord).count()
+    with uow:
+        book_count = uow.session.query(Book).count()
+        member_count = uow.session.query(Member).count()
+        borrow_count = uow.session.query(BorrowRecord).count()
 
     # Minimal scenario targets: 2000 books, 300 members, 1315 borrows
     # Due to randomized member selection and the 5-book limit constraint,
@@ -46,11 +47,12 @@ def test_seeder_minimal_scenario_idempotency(db_session):
     # 2. Run seeder second time
     Faker.seed(42)
     faker.unique.clear()
-    seed_books(db_session, config["books"], faker)
-    seed_members(db_session, config["members"], faker)
+    seed_books(uow, config["books"], faker)
+    seed_members(uow, config["members"], faker)
 
-    book_count_2 = db_session.query(Book).count()
-    member_count_2 = db_session.query(Member).count()
+    with uow:
+        book_count_2 = uow.session.query(Book).count()
+        member_count_2 = uow.session.query(Member).count()
 
     assert book_count_2 == book_count, (
         "Book count changed after 2nd seed run (should be idempotent)"
@@ -60,17 +62,18 @@ def test_seeder_minimal_scenario_idempotency(db_session):
     )
 
     # Constraints verification
-    invalid_books = db_session.query(Book).filter(Book.available_copies < 0).all()
-    assert len(invalid_books) == 0, "Found books with negative availability"
+    with uow:
+        invalid_books = uow.session.query(Book).filter(Book.available_copies < 0).all()
+        assert len(invalid_books) == 0, "Found books with negative availability"
 
-    inconsistent_borrows = (
-        db_session.query(BorrowRecord)
-        .filter(
-            BorrowRecord.status == BorrowStatus.RETURNED,
-            BorrowRecord.returned_at == None,
+        inconsistent_borrows = (
+            uow.session.query(BorrowRecord)
+            .filter(
+                BorrowRecord.status == BorrowStatus.RETURNED,
+                BorrowRecord.returned_at == None,
+            )
+            .all()
         )
-        .all()
-    )
     assert len(inconsistent_borrows) == 0, (
         "Found returned borrows without returned_at date"
     )

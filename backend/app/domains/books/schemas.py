@@ -9,9 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field
 # --- Core CRUD Schemas ---
 
 class BookBase(BaseModel):
-    title: str = Field(..., min_length=2, max_length=255)
-    author: str = Field(..., min_length=2, max_length=100)
-    isbn: str = Field(..., pattern=r"^[\d-]{10,17}$")
+    title: str = Field(..., min_length=1, max_length=255)
+    author: str = Field(..., min_length=1, max_length=100)
+    isbn: str = Field(..., pattern=r"^[a-zA-Z\d-]{1,36}$")
     total_copies: int = Field(1, ge=1, le=1000)
     available_copies: int = Field(1, ge=0)
 

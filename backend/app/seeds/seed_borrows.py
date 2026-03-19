@@ -1,117 +1,83 @@
 import logging
 import random
+import uuid
 from datetime import timezone
 from faker import Faker
-from sqlalchemy.orm import Session
-from app.domains.borrows.service import BorrowService
+from app.shared.uow import AbstractUnitOfWork
+from app.models.borrow_record import BorrowRecord, BorrowStatus
+from app.models.book import Book
 
 logger = logging.getLogger(__name__)
 
 
 def seed_borrows(
-    db: Session,
+    uow: AbstractUnitOfWork,
     active_count: int,
     returned_count: int,
     overdue_count: int,
     faker: Faker,
 ) -> int:
-    """
-    Seeds borrow records using BorrowService.
-    Supports active, returned, and overdue scenarios.
-    """
-    borrow_service = BorrowService(db)
-
+    """Seeds borrow records using bulk addition."""
     total_seeded = 0
 
-    # helper to get random book/member
-    # Use Repository directly to bypass Service limit of 100
-    from app.domains.books.repository import BookRepository
-
-    book_repo = BookRepository(db)
-    books_result = book_repo.list(limit=50000)
-    all_books = books_result["items"]
-
-    # MemberService now enforces limit=100, so use Repo
-    from app.domains.members.repository import MemberRepository
-
-    member_repo = MemberRepository(db)
-    members_result = member_repo.list(limit=50000)
-    all_members = members_result["items"]
+    with uow:
+        all_books = uow.books.list(limit=50000)["items"]
+        all_members = uow.members.list(limit=50000)["items"]
 
     if not all_books or not all_members:
         logger.warning("No books or members found. Skipping borrow seeding.")
         return 0
 
-    # 1. Seed Active Borrows
-    logger.info(f"Seeding {active_count} active borrows...")
-    for _ in range(active_count):
-        book = random.choice(all_books)
-        member = random.choice(all_members)
+    def get_borrow_dates(scenario: str):
+        if scenario == "active":
+            return faker.date_time_between(start_date="-547d", end_date="now", tzinfo=timezone.utc), None, BorrowStatus.BORROWED
+        elif scenario == "returned":
+            start = faker.date_time_between(start_date="-547d", end_date="-30d", tzinfo=timezone.utc)
+            end = faker.date_time_between(start_date=start, end_date="now", tzinfo=timezone.utc)
+            return start, end, BorrowStatus.RETURNED
+        elif scenario == "overdue":
+            start = faker.date_time_between(start_date="-547d", end_date="-20d", tzinfo=timezone.utc)
+            return start, None, BorrowStatus.BORROWED
 
-        # Simple check to avoid instant failure if book has no copies
-        if book.available_copies < 1:
-            continue
+    with uow:
+        for scenario, count in [("active", active_count), ("returned", returned_count), ("overdue", overdue_count)]:
+            logger.info(f"Seeding {count} {scenario} borrows...")
+            for _ in range(count):
+                book = random.choice(all_books)
+                member = random.choice(all_members)
+                
+                if scenario != "returned" and book.available_copies < 1:
+                    continue
 
-        try:
-            # Random date in last 1.5 years
-            borrow_date = faker.date_time_between(
-                start_date="-547d", end_date="now", tzinfo=timezone.utc
-            )
-            borrow_service.borrow_book(book.id, member.id, borrowed_at=borrow_date)
-            total_seeded += 1
-        except Exception:
-            # Ignore conflicts (limit exceeded, etc) for seeding
-            pass
+                borrow_date, return_date, status = get_borrow_dates(scenario)
+                
+                due_date = borrow_date + __import__('datetime').timedelta(days=14)
 
-    # 2. Seed Returned Borrows
-    logger.info(f"Seeding {returned_count} returned borrows...")
-    for _ in range(returned_count):
-        book = random.choice(all_books)
-        member = random.choice(all_members)
+                record = BorrowRecord(
+                    id=uuid.uuid4(),
+                    book_id=book.id,
+                    member_id=member.id,
+                    borrowed_at=borrow_date,
+                    due_date=due_date,
+                    returned_at=return_date,
+                    status=status
+                )
+                
+                # Adjust availability
+                if status == BorrowStatus.BORROWED:
+                    book_orm = uow.session.get(Book, book.id)
+                    if book_orm and book_orm.available_copies > 0:
+                        book_orm.available_copies -= 1
+                    else:
+                        continue
+                
+                uow.session.add(record)
+                total_seeded += 1
+                
+                if total_seeded % 500 == 0:
+                    uow.flush()
 
-        if book.available_copies < 1:
-            continue
-
-        try:
-            # Borrow in past (last 1.5 years)
-            borrow_date = faker.date_time_between(
-                start_date="-547d", end_date="-30d", tzinfo=timezone.utc
-            )
-            borrow = borrow_service.borrow_book(
-                book.id, member.id, borrowed_at=borrow_date
-            )
-
-            # Return after borrow date
-            # We ensure return date is after borrow date implicitly by logic or we can be precise
-            # faker.date_time_between can take start_date as datetime object? Yes.
-            return_date = faker.date_time_between(
-                start_date=borrow_date, end_date="now", tzinfo=timezone.utc
-            )
-            borrow_service.return_book(borrow.id, returned_at=return_date)
-
-            total_seeded += 1
-        except Exception:
-            pass
-
-    # 3. Seed Overdue Borrows
-    logger.info(f"Seeding {overdue_count} overdue borrows...")
-    for _ in range(overdue_count):
-        book = random.choice(all_books)
-        member = random.choice(all_members)
-
-        if book.available_copies < 1:
-            continue
-
-        try:
-            # Borrow > 14 days ago (up to 1.5 years)
-            borrow_date = faker.date_time_between(
-                start_date="-547d", end_date="-20d", tzinfo=timezone.utc
-            )
-            # Due date will be +14 days from borrow_date, so it will be in the past
-            borrow_service.borrow_book(book.id, member.id, borrowed_at=borrow_date)
-            total_seeded += 1
-        except Exception:
-            pass
+        uow.commit()
 
     logger.info(f"Successfully seeded {total_seeded} borrow events.")
     return total_seeded
